@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  image {
+    transition: all 200ms;
+  }
+  
+  image[clip-path] {
+    clip-path: circle(50%);
+  }
+}
