@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
-import { Lasso, Move, Loader2 } from 'lucide-react';
+import { Lasso, Move, ZoomIn, Loader2 } from 'lucide-react';
 import { Point } from '../types/embedding';
 import { useEmbeddingsData } from '../hooks/useEmbeddingsData';
 import { useImagePreloader } from '../hooks/useImagePreloader';
@@ -85,6 +85,12 @@ export const EmbeddingsVisualizer: React.FC = () => {
               <Move size={20} />
               Reset Selection
             </button>
+            {selectedPoints.length > 0 && (
+              <div className="flex items-center gap-1 px-4 py-2 bg-blue-100 text-blue-800 rounded-md">
+                <ZoomIn size={20} />
+                <span>Zoomed to {selectedPoints.length} items</span>
+              </div>
+            )}
           </div>
           <div className="text-sm text-gray-600">
             Selected: {selectedPoints.length} items

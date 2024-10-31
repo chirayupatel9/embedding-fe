@@ -22,6 +22,7 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application>();
   const spritesRef = useRef<Map<number, PIXI.Sprite>>(new Map());
+  const viewportRef = useRef<PIXI.Container>();
 
   useEffect(() => {
     if (!canvasRef.current || !viewportBounds.width || !viewportBounds.height) return;
@@ -44,7 +45,13 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
 
     // Setup viewport and interaction
     const viewport = new PIXI.Container();
+    viewport.sortableChildren = true;
     container.addChild(viewport);
+    viewportRef.current = viewport;
+
+    // Center the viewport
+    viewport.x = viewportBounds.width / 2;
+    viewport.y = viewportBounds.height / 2;
 
     // Create sprites for each point
     points.forEach((point) => {
@@ -60,6 +67,7 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
       sprite.y = point.y;
       sprite.anchor.set(0.5);
       sprite.interactive = true;
+      sprite.zIndex = 1;
 
       // Add circular mask
       const mask = new PIXI.Graphics();
@@ -92,14 +100,80 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
     };
   }, [points, viewportBounds, getLoadedImage]);
 
-  // Update selected states
+  // Update selected states and handle zooming
   useEffect(() => {
+    if (!viewportRef.current || !viewportBounds.width || !viewportBounds.height) return;
+
     spritesRef.current.forEach((sprite, id) => {
       const isSelected = selectedPoints.some(p => p.id === id);
       sprite.alpha = isSelected ? 1 : 0.7;
       sprite.scale.set(isSelected ? 1.2 : 1);
+      sprite.zIndex = isSelected ? 2 : 1;
     });
-  }, [selectedPoints]);
+
+    // Handle zooming to selected points
+    if (selectedPoints.length > 0) {
+      const bounds = {
+        minX: Math.min(...selectedPoints.map(p => p.x)),
+        maxX: Math.max(...selectedPoints.map(p => p.x)),
+        minY: Math.min(...selectedPoints.map(p => p.y)),
+        maxY: Math.max(...selectedPoints.map(p => p.y)),
+      };
+
+      const padding = 100; // Padding around the selection
+      const boundsWidth = bounds.maxX - bounds.minX + padding * 2;
+      const boundsHeight = bounds.maxY - bounds.minY + padding * 2;
+
+      // Calculate scale to fit the selection
+      const scaleX = viewportBounds.width / boundsWidth;
+      const scaleY = viewportBounds.height / boundsHeight;
+      const scale = Math.min(scaleX, scaleY, 2); // Limit max zoom
+
+      // Calculate center of selection
+      const centerX = (bounds.minX + bounds.maxX) / 2;
+      const centerY = (bounds.minY + bounds.maxY) / 2;
+
+      // Animate the viewport
+      const viewport = viewportRef.current;
+      const targetX = viewportBounds.width / 2 - centerX * scale;
+      const targetY = viewportBounds.height / 2 - centerY * scale;
+
+      // Smooth animation
+      const animate = () => {
+        const dx = (targetX - viewport.x) * 0.1;
+        const dy = (targetY - viewport.y) * 0.1;
+        const ds = (scale - viewport.scale.x) * 0.1;
+
+        viewport.x += dx;
+        viewport.y += dy;
+        viewport.scale.set(viewport.scale.x + ds);
+
+        if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1 || Math.abs(ds) > 0.001) {
+          requestAnimationFrame(animate);
+        }
+      };
+
+      animate();
+    } else {
+      // Reset zoom when no points are selected
+      const viewport = viewportRef.current;
+      const animate = () => {
+        const dx = (viewportBounds.width / 2 - viewport.x) * 0.1;
+        const dy = (viewportBounds.height / 2 - viewport.y) * 0.1;
+        const ds = (1 - viewport.scale.x) * 0.1;
+
+        viewport.x += dx;
+        viewport.y += dy;
+        viewport.scale.set(viewport.scale.x + ds);
+
+        if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1 || Math.abs(ds) > 0.001) {
+          requestAnimationFrame(animate);
+        }
+      };
+
+      animate();
+    }
+  }, [selectedPoints, viewportBounds]);
 
   return <div ref={canvasRef} className="w-full h-full" />;
 };
