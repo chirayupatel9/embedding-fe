@@ -1,89 +1,50 @@
 import React, { useEffect, useRef, useState } from 'react';
-import * as d3 from 'd3';
+import * as PIXI from 'pixi.js';
 import { Lasso, Move, Loader2 } from 'lucide-react';
 import { Point } from '../types/embedding';
 import { useEmbeddingsData } from '../hooks/useEmbeddingsData';
+import { useImagePreloader } from '../hooks/useImagePreloader';
+import { PixiRenderer } from './PixiRenderer';
+import { SelectionOverlay } from './SelectionOverlay';
+
+const CHUNK_SIZE = 100; // Number of sprites to load at once
 
 export const EmbeddingsVisualizer: React.FC = () => {
-  const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { points, isLoading, error } = useEmbeddingsData();
   const [selectedPoints, setSelectedPoints] = useState<Point[]>([]);
   const [isLassoMode, setIsLassoMode] = useState(false);
-  const [lassoPaths, setLassoPaths] = useState<[number, number][]>([]);
-  const [isDragging, setIsDragging] = useState(false);
+  const [viewportBounds, setViewportBounds] = useState({ width: 0, height: 0 });
+  const { preloadImages, getLoadedImage } = useImagePreloader();
 
   useEffect(() => {
-    if (!svgRef.current || isLoading) return;
-
-    const svg = d3.select(svgRef.current);
-    svg.selectAll('*').remove();
-
-    // Create main visualization group
-    const g = svg.append('g');
-
-    // Draw sprites
-    g.selectAll('image')
-      .data(points)
-      .join('image')
-      .attr('x', d => d.x - 20)
-      .attr('y', d => d.y - 20)
-      .attr('width', 40)
-      .attr('height', 40)
-      .attr('href', d => d.spritePath)
-      .attr('clip-path', 'circle(50%)')
-      .attr('class', d => 
-        selectedPoints.includes(d) 
-          ? 'transition-all duration-200 ring-2 ring-blue-500 ring-offset-2' 
-          : 'transition-all duration-200'
-      );
-
-    // Draw lasso path
-    if (lassoPaths.length > 0) {
-      const lineGenerator = d3.line();
-      g.append('path')
-        .attr('d', lineGenerator(lassoPaths))
-        .attr('fill', 'none')
-        .attr('stroke', '#666')
-        .attr('stroke-width', 2)
-        .attr('stroke-dasharray', '5,5');
-    }
-
-    // Handle mouse events
-    if (isLassoMode) {
-      svg
-        .on('mousedown', (event) => {
-          setIsDragging(true);
-          const [x, y] = d3.pointer(event);
-          setLassoPaths([[x, y]]);
-        })
-        .on('mousemove', (event) => {
-          if (!isDragging) return;
-          const [x, y] = d3.pointer(event);
-          setLassoPaths(prev => [...prev, [x, y]]);
-        })
-        .on('mouseup', () => {
-          setIsDragging(false);
-          if (lassoPaths.length < 3) return;
-
-          // Create polygon from lasso path
-          const polygon = lassoPaths.map(([x, y]) => [x, y]);
-          
-          // Select points inside the lasso
-          const selected = points.filter(point => {
-            return d3.polygonContains(polygon, [point.x, point.y]);
-          });
-
-          setSelectedPoints(selected);
-          setLassoPaths([]);
+    if (!containerRef.current) return;
+    
+    const updateViewportSize = () => {
+      if (containerRef.current) {
+        setViewportBounds({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight
         });
-    }
-
-    return () => {
-      svg.on('mousedown', null)
-         .on('mousemove', null)
-         .on('mouseup', null);
+      }
     };
-  }, [points, selectedPoints, lassoPaths, isLassoMode, isDragging, isLoading]);
+
+    updateViewportSize();
+    window.addEventListener('resize', updateViewportSize);
+    
+    // Preload images in chunks
+    const preloadChunks = async () => {
+      const uniqueSpritePaths = [...new Set(points.map(p => p.spritePath))];
+      for (let i = 0; i < uniqueSpritePaths.length; i += CHUNK_SIZE) {
+        const chunk = uniqueSpritePaths.slice(i, i + CHUNK_SIZE);
+        await preloadImages(chunk);
+      }
+    };
+
+    preloadChunks();
+
+    return () => window.removeEventListener('resize', updateViewportSize);
+  }, [points, preloadImages]);
 
   if (error) {
     return (
@@ -118,10 +79,7 @@ export const EmbeddingsVisualizer: React.FC = () => {
               {isLassoMode ? 'Exit Lasso' : 'Start Lasso'}
             </button>
             <button
-              onClick={() => {
-                setSelectedPoints([]);
-                setLassoPaths([]);
-              }}
+              onClick={() => setSelectedPoints([])}
               className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
             >
               <Move size={20} />
@@ -132,13 +90,29 @@ export const EmbeddingsVisualizer: React.FC = () => {
             Selected: {selectedPoints.length} items
           </div>
         </div>
-        <svg
-          ref={svgRef}
-          width="100%"
-          height="600"
-          className="border border-gray-200 rounded-lg"
+        
+        <div 
+          ref={containerRef} 
+          className="relative w-full h-[600px] border border-gray-200 rounded-lg overflow-hidden"
           style={{ backgroundColor: '#f8fafc' }}
-        />
+        >
+          <PixiRenderer
+            points={points}
+            selectedPoints={selectedPoints}
+            setSelectedPoints={setSelectedPoints}
+            viewportBounds={viewportBounds}
+            isLassoMode={isLassoMode}
+            getLoadedImage={getLoadedImage}
+          />
+          {isLassoMode && (
+            <SelectionOverlay
+              points={points}
+              onSelection={setSelectedPoints}
+              viewportBounds={viewportBounds}
+            />
+          )}
+        </div>
+
         {selectedPoints.length > 0 && (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
             <h3 className="text-lg font-semibold mb-2">Selected Categories:</h3>
