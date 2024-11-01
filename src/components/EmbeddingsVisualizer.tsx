@@ -1,19 +1,23 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
-import { Lasso, Move, ZoomIn, Loader2 } from 'lucide-react';
+import { Lasso, Move, ZoomIn, Hand, MinusCircle, PlusCircle, Loader2 } from 'lucide-react';
 import { Point } from '../types/embedding';
 import { useEmbeddingsData } from '../hooks/useEmbeddingsData';
 import { useImagePreloader } from '../hooks/useImagePreloader';
 import { PixiRenderer } from './PixiRenderer';
 import { SelectionOverlay } from './SelectionOverlay';
 
-const CHUNK_SIZE = 100; // Number of sprites to load at once
+const CHUNK_SIZE = 100000;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 5;
 
 export const EmbeddingsVisualizer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { points, isLoading, error } = useEmbeddingsData();
   const [selectedPoints, setSelectedPoints] = useState<Point[]>([]);
   const [isLassoMode, setIsLassoMode] = useState(false);
+  const [isPanMode, setIsPanMode] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
   const [viewportBounds, setViewportBounds] = useState({ width: 0, height: 0 });
   const { preloadImages, getLoadedImage } = useImagePreloader();
 
@@ -32,7 +36,6 @@ export const EmbeddingsVisualizer: React.FC = () => {
     updateViewportSize();
     window.addEventListener('resize', updateViewportSize);
     
-    // Preload images in chunks
     const preloadChunks = async () => {
       const uniqueSpritePaths = [...new Set(points.map(p => p.spritePath))];
       for (let i = 0; i < uniqueSpritePaths.length; i += CHUNK_SIZE) {
@@ -45,6 +48,15 @@ export const EmbeddingsVisualizer: React.FC = () => {
 
     return () => window.removeEventListener('resize', updateViewportSize);
   }, [points, preloadImages]);
+
+  const handleZoomChange = (newZoom: number) => {
+    setZoomLevel(Math.min(Math.max(newZoom, MIN_ZOOM), MAX_ZOOM));
+  };
+
+  const handleModeChange = (mode: 'pan' | 'lasso' | null) => {
+    setIsLassoMode(mode === 'lasso');
+    setIsPanMode(mode === 'pan');
+  };
 
   if (error) {
     return (
@@ -68,32 +80,67 @@ export const EmbeddingsVisualizer: React.FC = () => {
         <div className="flex justify-between items-center mb-4">
           <div className="flex gap-2">
             <button
-              onClick={() => setIsLassoMode(!isLassoMode)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md ${
+              onClick={() => handleModeChange(isLassoMode ? null : 'lasso')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
                 isLassoMode
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
               <Lasso size={20} />
-              {isLassoMode ? 'Exit Lasso' : 'Start Lasso'}
+              {isLassoMode ? 'Exit Lasso' : 'Lasso Select'}
+            </button>
+            <button
+              onClick={() => handleModeChange(isPanMode ? null : 'pan')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                isPanMode
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <Hand size={20} />
+              {isPanMode ? 'Exit Pan' : 'Pan Mode'}
             </button>
             <button
               onClick={() => setSelectedPoints([])}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
             >
               <Move size={20} />
-              Reset Selection
+              Reset View
             </button>
-            {selectedPoints.length > 0 && (
-              <div className="flex items-center gap-1 px-4 py-2 bg-blue-100 text-blue-800 rounded-md">
-                <ZoomIn size={20} />
-                <span>Zoomed to {selectedPoints.length} items</span>
-              </div>
-            )}
           </div>
-          <div className="text-sm text-gray-600">
-            Selected: {selectedPoints.length} items
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleZoomChange(zoomLevel - 0.1)}
+                className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
+                disabled={zoomLevel <= MIN_ZOOM}
+              >
+                <MinusCircle size={20} />
+              </button>
+              <input
+                type="range"
+                min={MIN_ZOOM}
+                max={MAX_ZOOM}
+                step="0.1"
+                value={zoomLevel}
+                onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                className="w-32"
+              />
+              <button
+                onClick={() => handleZoomChange(zoomLevel + 0.1)}
+                className="p-1 text-gray-600 hover:text-gray-900 transition-colors"
+                disabled={zoomLevel >= MAX_ZOOM}
+              >
+                <PlusCircle size={20} />
+              </button>
+              <span className="text-sm text-gray-600 min-w-[4rem]">
+                {Math.round(zoomLevel * 100)}%
+              </span>
+            </div>
+            <div className="text-sm text-gray-600">
+              Selected: {selectedPoints.length}
+            </div>
           </div>
         </div>
         
@@ -108,6 +155,8 @@ export const EmbeddingsVisualizer: React.FC = () => {
             setSelectedPoints={setSelectedPoints}
             viewportBounds={viewportBounds}
             isLassoMode={isLassoMode}
+            isPanMode={isPanMode}
+            zoomLevel={zoomLevel}
             getLoadedImage={getLoadedImage}
           />
           {isLassoMode && (

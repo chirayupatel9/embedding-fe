@@ -8,6 +8,8 @@ interface PixiRendererProps {
   setSelectedPoints: (points: Point[]) => void;
   viewportBounds: { width: number; height: number };
   isLassoMode: boolean;
+  isPanMode: boolean;
+  zoomLevel: number;
   getLoadedImage: (path: string) => HTMLImageElement | undefined;
 }
 
@@ -17,102 +19,195 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
   setSelectedPoints,
   viewportBounds,
   isLassoMode,
+  isPanMode,
+  zoomLevel,
   getLoadedImage,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application>();
   const spritesRef = useRef<Map<number, PIXI.Sprite>>(new Map());
   const viewportRef = useRef<PIXI.Container>();
+  const isDraggingRef = useRef(false);
+  const lastPositionRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!canvasRef.current || !viewportBounds.width || !viewportBounds.height) return;
 
-    // Initialize PIXI Application
     const app = new PIXI.Application({
       width: viewportBounds.width,
       height: viewportBounds.height,
       backgroundColor: 0xf8fafc,
       antialias: true,
       resolution: window.devicePixelRatio || 1,
+      autoDensity: true,
     });
 
     canvasRef.current.appendChild(app.view as unknown as Node);
     appRef.current = app;
 
-    // Create container for sprites
-    const container = new PIXI.Container();
-    app.stage.addChild(container);
-
-    // Setup viewport and interaction
     const viewport = new PIXI.Container();
     viewport.sortableChildren = true;
-    container.addChild(viewport);
+    app.stage.addChild(viewport);
     viewportRef.current = viewport;
 
-    // Center the viewport
     viewport.x = viewportBounds.width / 2;
     viewport.y = viewportBounds.height / 2;
 
-    // Create sprites for each point
-    points.forEach((point) => {
-      const image = getLoadedImage(point.spritePath);
-      if (!image) return;
+    const batchSize = 50;
+    let currentBatch = 0;
 
-      const texture = PIXI.Texture.from(image);
-      const sprite = new PIXI.Sprite(texture);
+    const processBatch = () => {
+      const start = currentBatch * batchSize;
+      const end = Math.min(start + batchSize, points.length);
+      
+      for (let i = start; i < end; i++) {
+        const point = points[i];
+        const image = getLoadedImage(point.spritePath);
+        if (!image) continue;
 
-      sprite.width = 40;
-      sprite.height = 40;
-      sprite.x = point.x;
-      sprite.y = point.y;
-      sprite.anchor.set(0.5);
-      sprite.interactive = true;
-      sprite.zIndex = 1;
+        const texture = PIXI.Texture.from(image);
+        const sprite = new PIXI.Sprite(texture);
 
-      // Add circular mask
-      const mask = new PIXI.Graphics();
-      mask.beginFill(0xffffff);
-      mask.drawCircle(0, 0, 20);
-      mask.endFill();
-      sprite.mask = mask;
-      sprite.addChild(mask);
+        sprite.width = 40;
+        sprite.height = 40;
+        sprite.x = point.x;
+        sprite.y = point.y;
+        sprite.anchor.set(0.5);
+        sprite.eventMode = 'static';
+        sprite.cursor = isPanMode ? 'grab' : 'pointer';
+        sprite.zIndex = 1;
 
-      viewport.addChild(sprite);
-      spritesRef.current.set(point.id, sprite);
+        // Add glow filter for highlighting
+        const glowFilter = new PIXI.BlurFilter();
+        glowFilter.blur = 4;
+        glowFilter.quality = 2;
+        sprite.filters = [glowFilter];
+        glowFilter.enabled = false;
 
-      // Handle click events
-      sprite.on('pointerdown', () => {
-        if (!isLassoMode) {
-          const isSelected = selectedPoints.includes(point);
-          setSelectedPoints(isSelected 
-            ? selectedPoints.filter(p => p.id !== point.id)
-            : [...selectedPoints, point]
-          );
-        }
-      });
-    });
+        const mask = new PIXI.Graphics();
+        mask.beginFill(0xffffff);
+        mask.drawCircle(0, 0, 20);
+        mask.endFill();
+        sprite.mask = mask;
+        sprite.addChild(mask);
+
+        viewport.addChild(sprite);
+        spritesRef.current.set(point.id, sprite);
+
+        sprite.on('pointerdown', (event) => {
+          if (!isLassoMode && !isPanMode && !isDraggingRef.current) {
+            const isSelected = selectedPoints.includes(point);
+            setSelectedPoints(isSelected 
+              ? selectedPoints.filter(p => p.id !== point.id)
+              : [...selectedPoints, point]
+            );
+            event.stopPropagation();
+          }
+        });
+
+        sprite.on('mouseover', () => {
+          if (!isLassoMode && !isPanMode) {
+            sprite.scale.set(1.2);
+            (sprite.filters![0] as PIXI.BlurFilter).enabled = true;
+          }
+        });
+
+        sprite.on('mouseout', () => {
+          if (!selectedPoints.includes(point)) {
+            sprite.scale.set(1);
+            (sprite.filters![0] as PIXI.BlurFilter).enabled = false;
+          }
+        });
+      }
+
+      currentBatch++;
+      if (currentBatch * batchSize < points.length) {
+        requestAnimationFrame(processBatch);
+      }
+    };
+
+    processBatch();
+
+    const onDragStart = (event: PIXI.FederatedPointerEvent) => {
+      if (isLassoMode || !isPanMode) return;
+      isDraggingRef.current = true;
+      lastPositionRef.current = { x: event.globalX, y: event.globalY };
+      app.stage.cursor = 'grabbing';
+    };
+
+    const onDragMove = (event: PIXI.FederatedPointerEvent) => {
+      if (!isDraggingRef.current || isLassoMode || !isPanMode) return;
+
+      const dx = event.globalX - lastPositionRef.current.x;
+      const dy = event.globalY - lastPositionRef.current.y;
+      
+      viewport.x += dx;
+      viewport.y += dy;
+
+      lastPositionRef.current = { x: event.globalX, y: event.globalY };
+    };
+
+    const onDragEnd = () => {
+      isDraggingRef.current = false;
+      app.stage.cursor = isPanMode ? 'grab' : 'default';
+    };
+
+    app.stage
+      .on('pointerdown', onDragStart)
+      .on('pointermove', onDragMove)
+      .on('pointerup', onDragEnd)
+      .on('pointerupoutside', onDragEnd);
+
+    const onWheel = (event: WheelEvent) => {
+      if (isLassoMode) return;
+      event.preventDefault();
+
+      const mouseX = event.offsetX;
+      const mouseY = event.offsetY;
+      
+      const worldPos = {
+        x: (mouseX - viewport.x) / viewport.scale.x,
+        y: (mouseY - viewport.y) / viewport.scale.y
+      };
+
+      const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
+      const newScale = Math.min(Math.max(viewport.scale.x * zoomFactor, 0.1), 5);
+      
+      viewport.scale.set(newScale);
+
+      viewport.x = mouseX - worldPos.x * viewport.scale.x;
+      viewport.y = mouseY - worldPos.y * viewport.scale.y;
+    };
+
+    canvasRef.current.addEventListener('wheel', onWheel, { passive: false });
 
     return () => {
+      canvasRef.current?.removeEventListener('wheel', onWheel);
       app.destroy(true);
       if (canvasRef.current?.firstChild) {
         canvasRef.current.removeChild(canvasRef.current.firstChild);
       }
     };
-  }, [points, viewportBounds, getLoadedImage]);
+  }, [points, viewportBounds, getLoadedImage, isLassoMode, isPanMode]);
 
-  // Update selected states and handle zooming
+  // Update zoom level
   useEffect(() => {
-    if (!viewportRef.current || !viewportBounds.width || !viewportBounds.height) return;
+    if (viewportRef.current) {
+      viewportRef.current.scale.set(zoomLevel);
+    }
+  }, [zoomLevel]);
 
+  // Update selected states
+  useEffect(() => {
     spritesRef.current.forEach((sprite, id) => {
       const isSelected = selectedPoints.some(p => p.id === id);
       sprite.alpha = isSelected ? 1 : 0.7;
       sprite.scale.set(isSelected ? 1.2 : 1);
       sprite.zIndex = isSelected ? 2 : 1;
+      (sprite.filters![0] as PIXI.BlurFilter).enabled = isSelected;
     });
 
-    // Handle zooming to selected points
-    if (selectedPoints.length > 0) {
+    if (selectedPoints.length > 0 && !isDraggingRef.current) {
       const bounds = {
         minX: Math.min(...selectedPoints.map(p => p.x)),
         maxX: Math.max(...selectedPoints.map(p => p.x)),
@@ -120,58 +215,23 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
         maxY: Math.max(...selectedPoints.map(p => p.y)),
       };
 
-      const padding = 100; // Padding around the selection
+      const padding = 100;
       const boundsWidth = bounds.maxX - bounds.minX + padding * 2;
       const boundsHeight = bounds.maxY - bounds.minY + padding * 2;
 
-      // Calculate scale to fit the selection
       const scaleX = viewportBounds.width / boundsWidth;
       const scaleY = viewportBounds.height / boundsHeight;
-      const scale = Math.min(scaleX, scaleY, 2); // Limit max zoom
+      const scale = Math.min(scaleX, scaleY, 2);
 
-      // Calculate center of selection
       const centerX = (bounds.minX + bounds.maxX) / 2;
       const centerY = (bounds.minY + bounds.maxY) / 2;
 
-      // Animate the viewport
       const viewport = viewportRef.current;
-      const targetX = viewportBounds.width / 2 - centerX * scale;
-      const targetY = viewportBounds.height / 2 - centerY * scale;
-
-      // Smooth animation
-      const animate = () => {
-        const dx = (targetX - viewport.x) * 0.1;
-        const dy = (targetY - viewport.y) * 0.1;
-        const ds = (scale - viewport.scale.x) * 0.1;
-
-        viewport.x += dx;
-        viewport.y += dy;
-        viewport.scale.set(viewport.scale.x + ds);
-
-        if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1 || Math.abs(ds) > 0.001) {
-          requestAnimationFrame(animate);
-        }
-      };
-
-      animate();
-    } else {
-      // Reset zoom when no points are selected
-      const viewport = viewportRef.current;
-      const animate = () => {
-        const dx = (viewportBounds.width / 2 - viewport.x) * 0.1;
-        const dy = (viewportBounds.height / 2 - viewport.y) * 0.1;
-        const ds = (1 - viewport.scale.x) * 0.1;
-
-        viewport.x += dx;
-        viewport.y += dy;
-        viewport.scale.set(viewport.scale.x + ds);
-
-        if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1 || Math.abs(ds) > 0.001) {
-          requestAnimationFrame(animate);
-        }
-      };
-
-      animate();
+      if (viewport) {
+        viewport.x = viewportBounds.width / 2 - centerX * scale;
+        viewport.y = viewportBounds.height / 2 - centerY * scale;
+        viewport.scale.set(scale);
+      }
     }
   }, [selectedPoints, viewportBounds]);
 
