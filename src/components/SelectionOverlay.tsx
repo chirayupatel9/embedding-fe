@@ -6,12 +6,14 @@ interface SelectionOverlayProps {
   points: Point[];
   onSelection: (selected: Point[]) => void;
   viewportBounds: { width: number; height: number };
+  viewportRef: React.MutableRefObject<PIXI.Container | undefined>;
 }
 
 export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
   points,
   onSelection,
   viewportBounds,
+  viewportRef,
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [lassoPaths, setLassoPaths] = useState<[number, number][]>([]);
@@ -23,19 +25,19 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
       const closedPath = [...paths, paths[0]];
       const polygon = closedPath.map(([x, y]) => [x, y]);
       
+      const viewport = viewportRef.current;
       const selected = points.filter(point => {
-        const adjustedPoint = [
-          point.x + viewportBounds.width / 2,
-          point.y + viewportBounds.height / 2
-        ];
-        return d3.polygonContains(polygon, adjustedPoint);
+        // Transform point coordinates based on viewport
+        const transformedX = (point.x * viewport!.scale.x + viewport!.x);
+        const transformedY = (point.y * viewport!.scale.y + viewport!.y);
+        return d3.polygonContains(polygon, [transformedX, transformedY]);
       });
 
       setHighlightedPoints(selected);
     } else {
       setHighlightedPoints([]);
     }
-  }, [points, viewportBounds]);
+  }, [points, viewportRef]);
 
   useEffect(() => {
     if (!svgRef.current) return;

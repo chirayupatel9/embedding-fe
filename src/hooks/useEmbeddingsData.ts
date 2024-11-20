@@ -1,7 +1,6 @@
-import {useState, useEffect} from 'react';
-import {EmbeddingItem, Point} from '../types/embedding';
+import { useState, useEffect } from 'react';
+import { EmbeddingItem, Point } from '../types/embedding';
 
-// Updated mock data with valid Unsplash image URLs
 const MOCK_API_DATA = {
     "items": [
         {
@@ -3655,42 +3654,34 @@ const MOCK_API_DATA = {
 };
 
 export const useEmbeddingsData = () => {
-    const [points, setPoints] = useState<Point[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+  const [points, setPoints] = useState<Point[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // In production, replace this with actual API call
-                // const response = await fetch('your-api-endpoint');
-                // const data = await response.json();
-                const data = MOCK_API_DATA;
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = MOCK_API_DATA;
 
-                const scaledPoints = data.items.map((item: EmbeddingItem, index: number) => {
-                    const scaleX = 800;
-                    const scaleY = 600;
+        const scaledPoints = data.items.map((item: EmbeddingItem, index: number) => ({
+          id: index,
+          x: item.embedding[0] * (800 / 15),
+          y: item.embedding[1] * (600 / 15),
+          category: item.category,
+          spritePath: item.sprite_path,
+          originalItem: item
+        }));
 
-                    return {
-                        id: index,
-                        x: item.embedding[0] * (scaleX / 15),
-                        y: item.embedding[1] * (scaleY / 15),
-                        category: item.category,
-                        spritePath: item.sprite_path,
-                        originalItem: item
-                    };
-                });
+        setPoints(scaledPoints);
+        setIsLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+        setIsLoading(false);
+      }
+    };
 
-                setPoints(scaledPoints);
-                setIsLoading(false);
-            } catch (err) {
-                setError(err instanceof Error ? err.message : 'Failed to fetch data');
-                setIsLoading(false);
-            }
-        };
+    fetchData();
+  }, []);
 
-        fetchData();
-    }, []);
-
-    return {points, isLoading, error};
+  return { points, isLoading, error };
 };

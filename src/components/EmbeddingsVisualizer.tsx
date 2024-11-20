@@ -1,25 +1,34 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
-import { Lasso, Move, ZoomIn, Hand, MinusCircle, PlusCircle, Loader2 } from 'lucide-react';
+import { Lasso, Move, Hand, MinusCircle, PlusCircle, Loader2 } from 'lucide-react';
 import { Point } from '../types/embedding';
 import { useEmbeddingsData } from '../hooks/useEmbeddingsData';
 import { useImagePreloader } from '../hooks/useImagePreloader';
 import { PixiRenderer } from './PixiRenderer';
 import { SelectionOverlay } from './SelectionOverlay';
+import { createProjection } from '../utils/projection';
 
-const CHUNK_SIZE = 100000;
+const CHUNK_SIZE = 50;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
 
 export const EmbeddingsVisualizer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { points, isLoading, error } = useEmbeddingsData();
+  const { points: originalPoints, isLoading, error } = useEmbeddingsData();
+  const [displayedPoints, setDisplayedPoints] = useState<Point[]>([]);
   const [selectedPoints, setSelectedPoints] = useState<Point[]>([]);
   const [isLassoMode, setIsLassoMode] = useState(false);
   const [isPanMode, setIsPanMode] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [viewportBounds, setViewportBounds] = useState({ width: 0, height: 0 });
+  const [isProjectedView, setIsProjectedView] = useState(false);
   const { preloadImages, getLoadedImage } = useImagePreloader();
+  const viewportRef = useRef<PIXI.Container>();
+  const renderedPointsRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    setDisplayedPoints(originalPoints);
+  }, [originalPoints]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -37,25 +46,67 @@ export const EmbeddingsVisualizer: React.FC = () => {
     window.addEventListener('resize', updateViewportSize);
     
     const preloadChunks = async () => {
-      const uniqueSpritePaths = [...new Set(points.map(p => p.spritePath))];
+      const uniqueSpritePaths = [...new Set(displayedPoints.map(p => p.spritePath))];
       for (let i = 0; i < uniqueSpritePaths.length; i += CHUNK_SIZE) {
         const chunk = uniqueSpritePaths.slice(i, i + CHUNK_SIZE);
         await preloadImages(chunk);
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
     };
 
     preloadChunks();
 
     return () => window.removeEventListener('resize', updateViewportSize);
-  }, [points, preloadImages]);
+  }, [displayedPoints, preloadImages]);
 
   const handleZoomChange = (newZoom: number) => {
     setZoomLevel(Math.min(Math.max(newZoom, MIN_ZOOM), MAX_ZOOM));
   };
 
   const handleModeChange = (mode: 'pan' | 'lasso' | null) => {
-    setIsLassoMode(mode === 'lasso');
-    setIsPanMode(mode === 'pan');
+    if (mode === 'lasso') {
+      setIsLassoMode(true);
+      setIsPanMode(false);
+    } else if (mode === 'pan') {
+      setIsLassoMode(false);
+      setIsPanMode(true);
+    } else {
+      setIsLassoMode(false);
+      setIsPanMode(false);
+    }
+  };
+
+  const handleReset = () => {
+    setSelectedPoints([]);
+    setZoomLevel(1);
+    setIsLassoMode(false);
+    setIsPanMode(false);
+    setDisplayedPoints(originalPoints);
+    setIsProjectedView(false);
+    renderedPointsRef.current.clear();
+    if (viewportRef.current) {
+      viewportRef.current.position.set(viewportBounds.width / 2, viewportBounds.height / 2);
+      viewportRef.current.scale.set(1);
+    }
+  };
+
+  const handleSelectionComplete = (selected: Point[]) => {
+    if (selected.length > 0) {
+      setSelectedPoints(selected);
+      setIsLassoMode(false);
+      setIsProjectedView(true);
+      
+      // Create new projection for selected points
+      const newProjection = createProjection(selected, viewportBounds.width, viewportBounds.height);
+      renderedPointsRef.current.clear();
+      setDisplayedPoints(newProjection);
+      
+      if (viewportRef.current) {
+        viewportRef.current.position.set(viewportBounds.width / 2, viewportBounds.height / 2);
+        viewportRef.current.scale.set(1);
+      }
+      setZoomLevel(1);
+    }
   };
 
   if (error) {
@@ -76,7 +127,6 @@ export const EmbeddingsVisualizer: React.FC = () => {
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-gray-100">
-      {/* Floating Controls */}
       <div className="fixed top-4 left-1/2 -translate-x-1/2 z-10 flex gap-2 bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-lg">
         <button
           onClick={() => handleModeChange(isLassoMode ? null : 'lasso')}
@@ -101,7 +151,7 @@ export const EmbeddingsVisualizer: React.FC = () => {
           {isPanMode ? 'Exit Pan' : 'Pan Mode'}
         </button>
         <button
-          onClick={() => setSelectedPoints([])}
+          onClick={handleReset}
           className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
         >
           <Move size={20} />
@@ -109,7 +159,6 @@ export const EmbeddingsVisualizer: React.FC = () => {
         </button>
       </div>
 
-      {/* Zoom Controls */}
       <div className="fixed bottom-4 right-4 z-10 flex items-center gap-2 bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-lg">
         <button
           onClick={() => handleZoomChange(zoomLevel - 0.1)}
@@ -130,14 +179,13 @@ export const EmbeddingsVisualizer: React.FC = () => {
         </button>
       </div>
 
-      {/* Selection Info */}
-      {selectedPoints.length > 0 && (
+      {isProjectedView && (
         <div className="fixed bottom-4 left-4 z-10 bg-white/90 backdrop-blur-sm p-4 rounded-lg shadow-lg">
           <div className="text-sm font-medium text-gray-800 mb-2">
-            Selected: {selectedPoints.length} items
+            Showing projection of {displayedPoints.length} items
           </div>
           <div className="flex flex-wrap gap-2">
-            {Array.from(new Set(selectedPoints.map(p => p.category))).map(category => (
+            {Array.from(new Set(displayedPoints.map(p => p.category))).map(category => (
               <span
                 key={category}
                 className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
@@ -149,13 +197,13 @@ export const EmbeddingsVisualizer: React.FC = () => {
         </div>
       )}
       
-      {/* Main Canvas */}
       <div 
         ref={containerRef} 
         className="w-full h-full"
       >
         <PixiRenderer
-          points={points}
+          key={isProjectedView ? 'projected-view' : 'original-view'}
+          points={displayedPoints}
           selectedPoints={selectedPoints}
           setSelectedPoints={setSelectedPoints}
           viewportBounds={viewportBounds}
@@ -163,12 +211,15 @@ export const EmbeddingsVisualizer: React.FC = () => {
           isPanMode={isPanMode}
           zoomLevel={zoomLevel}
           getLoadedImage={getLoadedImage}
+          viewportRef={viewportRef}
+          renderedPointsRef={renderedPointsRef}
         />
         {isLassoMode && (
           <SelectionOverlay
-            points={points}
-            onSelection={setSelectedPoints}
+            points={displayedPoints}
+            onSelection={handleSelectionComplete}
             viewportBounds={viewportBounds}
+            viewportRef={viewportRef}
           />
         )}
       </div>
