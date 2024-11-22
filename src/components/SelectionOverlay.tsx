@@ -18,26 +18,16 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
   const svgRef = useRef<SVGSVGElement>(null);
   const [lassoPaths, setLassoPaths] = useState<[number, number][]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [highlightedPoints, setHighlightedPoints] = useState<Point[]>([]);
 
-  const updateHighlightedPoints = useCallback((paths: [number, number][]) => {
-    if (paths.length > 2) {
-      const closedPath = [...paths, paths[0]];
-      const polygon = closedPath.map(([x, y]) => [x, y]);
-      
-      const viewport = viewportRef.current;
-      const selected = points.filter(point => {
-        // Transform point coordinates based on viewport
-        const transformedX = (point.x * viewport!.scale.x + viewport!.x);
-        const transformedY = (point.y * viewport!.scale.y + viewport!.y);
-        return d3.polygonContains(polygon, [transformedX, transformedY]);
-      });
+  const screenToWorld = useCallback((x: number, y: number): [number, number] => {
+    const viewport = viewportRef.current;
+    if (!viewport) return [x, y];
 
-      setHighlightedPoints(selected);
-    } else {
-      setHighlightedPoints([]);
-    }
-  }, [points, viewportRef]);
+    return [
+      (x - viewport.x) / viewport.scale.x,
+      (y - viewport.y) / viewport.scale.y
+    ];
+  }, []);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -46,38 +36,36 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
     svg.selectAll('*').remove();
 
     if (lassoPaths.length > 2) {
-      const lineGenerator = d3.line().curve(d3.curveBasisClosed);
+      const lineGenerator = d3.line();
       const closedPath = [...lassoPaths, lassoPaths[0]];
-      
-      // Draw fill area
+
       svg.append('path')
         .attr('d', lineGenerator(closedPath))
         .attr('fill', '#3b82f6')
         .attr('fill-opacity', 0.1)
-        .attr('stroke', 'none');
-
-      // Draw outline with animation
-      svg.append('path')
-        .attr('d', lineGenerator(closedPath))
-        .attr('fill', 'none')
         .attr('stroke', '#3b82f6')
         .attr('stroke-width', 2)
         .attr('stroke-dasharray', '5,5')
-        .attr('stroke-linecap', 'round')
-        .style('animation', 'dash 1s linear infinite');
+        .attr('stroke-linecap', 'round');
     }
 
-    const handleMouseDown = (event: any) => {
-      const [x, y] = d3.pointer(event);
+    const handleMouseDown = (event: MouseEvent) => {
+      const rect = svgRef.current!.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
       setLassoPaths([[x, y]]);
       setIsDragging(true);
-      setHighlightedPoints([]);
+      event.preventDefault();
     };
 
-    const handleMouseMove = (event: any) => {
+    const handleMouseMove = (event: MouseEvent) => {
       if (!isDragging) return;
-      const [x, y] = d3.pointer(event);
-      
+
+      const rect = svgRef.current!.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
       setLassoPaths(prev => {
         const lastPoint = prev[prev.length - 1];
         if (lastPoint) {
@@ -85,63 +73,53 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
           const distance = Math.hypot(x - lastX, y - lastY);
           if (distance < 5) return prev;
         }
-        const newPaths = [...prev, [x, y]] as [number, number][];
-        updateHighlightedPoints(newPaths);
-        return newPaths;
+        return [...prev, [x, y]];
       });
     };
 
     const handleMouseUp = () => {
+      if (!isDragging) return;
       setIsDragging(false);
 
-      if (lassoPaths.length < 3) {
-        setLassoPaths([]);
-        setHighlightedPoints([]);
-        return;
+      if (lassoPaths.length >= 3) {
+        const worldPaths = lassoPaths.map(([x, y]) => screenToWorld(x, y));
+        const closedPath = [...worldPaths, worldPaths[0]];
+
+        const selectedPoints = points.filter(point => {
+          const worldPoint = screenToWorld(point.x, point.y);
+          return d3.polygonContains(closedPath, worldPoint);
+        });
+
+        if (selectedPoints.length > 0) {
+          onSelection(selectedPoints);
+        }
       }
 
-      onSelection(highlightedPoints);
       setLassoPaths([]);
-      setHighlightedPoints([]);
     };
 
-    svg
-      .on('mousedown', handleMouseDown)
-      .on('mousemove', handleMouseMove)
-      .on('mouseup', handleMouseUp)
-      .on('mouseleave', () => {
-        if (isDragging) {
-          handleMouseUp();
-        }
-      });
+    const svgElement = svgRef.current;
+    svgElement.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
 
     return () => {
-      svg
-        .on('mousedown', null)
-        .on('mousemove', null)
-        .on('mouseup', null)
-        .on('mouseleave', null);
+      svgElement.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [lassoPaths, isDragging, onSelection, highlightedPoints, updateHighlightedPoints]);
+  }, [lassoPaths, isDragging, onSelection, points, screenToWorld]);
 
   return (
-    <>
-      <style>
-        {`
-          @keyframes dash {
-            to {
-              stroke-dashoffset: -10;
-            }
-          }
-        `}
-      </style>
-      <svg
-        ref={svgRef}
-        className="absolute inset-0 pointer-events-auto cursor-crosshair"
-        width={viewportBounds.width}
-        height={viewportBounds.height}
-        style={{ pointerEvents: 'all' }}
-      />
-    </>
+    <svg
+      ref={svgRef}
+      className="absolute inset-0 pointer-events-auto cursor-crosshair"
+      width={viewportBounds.width}
+      height={viewportBounds.height}
+      style={{
+        pointerEvents: 'all',
+        touchAction: 'none'
+      }}
+    />
   );
 };

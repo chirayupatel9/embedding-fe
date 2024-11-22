@@ -2,7 +2,8 @@ export interface EmbeddingItem {
   embedding: number[];
   label: number;
   category: string;
-  sprite_path: string;
+  spriteX: number;  // X position in sprite sheet
+  spriteY: number;  // Y position in sprite sheet
 }
 
 export interface Point {
@@ -10,6 +11,7 @@ export interface Point {
   x: number;
   y: number;
   category: string;
-  spritePath: string;
+  spriteX: number;
+  spriteY: number;
   originalItem: EmbeddingItem;
 }
