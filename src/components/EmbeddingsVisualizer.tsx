@@ -9,8 +9,8 @@ import { ToolbarControls } from './ToolbarControls';
 import { ZoomControls } from './ZoomControls';
 import { SelectionInfo } from './SelectionInfo';
 
-const CANVAS_WIDTH = Math.min(800, window.innerWidth - 32);
-const CANVAS_HEIGHT = Math.min(600, window.innerHeight - 200);
+const CANVAS_WIDTH = Math.min(1000, window.innerWidth - 32);
+const CANVAS_HEIGHT = Math.min(800, window.innerHeight - 200);
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
 
