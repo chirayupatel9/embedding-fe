@@ -1,9 +1,29 @@
+export interface ApiResponse {
+  itemsPath: string;  // Path to metadata.json
+  spritePath: string; // Path to sprite_sheet.png
+}
+
+export interface SpriteSheetMeta {
+  columns: number;
+  rows: number;
+  width: number;
+  height: number;
+  sprite_width: number;
+  sprite_height: number;
+  url?: string;
+}
+
 export interface EmbeddingItem {
   embedding: number[];
   label: number;
   category: string;
-  spriteX: number;  // X position in sprite sheet
-  spriteY: number;  // Y position in sprite sheet
+  spriteX: number;
+  spriteY: number;
+}
+
+export interface Metadata {
+  items: EmbeddingItem[];
+  sprite_sheet: SpriteSheetMeta;
 }
 
 export interface Point {

@@ -1,46 +1,40 @@
 import React, { useEffect, useRef } from 'react';
 import * as PIXI from 'pixi.js';
-import { Point } from '../types/embedding';
-import { useSpriteSheet } from '../hooks/useSpriteSheet';
+import { Point, Metadata } from '../types/embedding';
 
 interface PixiRendererProps {
   points: Point[];
   selectedPoints: Point[];
-  setSelectedPoints: (points: Point[]) => void;
   viewportBounds: { width: number; height: number };
   isLassoMode: boolean;
   isPanMode: boolean;
   zoomLevel: number;
   viewportRef: React.MutableRefObject<PIXI.Container | undefined>;
-  renderedPointsRef: React.MutableRefObject<Set<number>>;
+  metadata: Metadata;
 }
 
 export const PixiRenderer: React.FC<PixiRendererProps> = ({
   points,
   selectedPoints,
-  setSelectedPoints,
   viewportBounds,
   isLassoMode,
   isPanMode,
   zoomLevel,
   viewportRef,
-  renderedPointsRef,
+  metadata,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const appRef = useRef<PIXI.Application>();
+  const appRef = useRef<PIXI.Application | null>(null);
   const spritesRef = useRef<Map<number, PIXI.Sprite>>(new Map());
+  const baseTextureRef = useRef<PIXI.BaseTexture | null>(null);
   const isDraggingRef = useRef(false);
   const lastPositionRef = useRef({ x: 0, y: 0 });
-  const { getTexture, isLoaded } = useSpriteSheet();
+  const cleanupRef = useRef<(() => void) | null>(null);
 
-  // Initialize PIXI application
+  // Initialize PIXI Application
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    PIXI.settings.SPRITE_MAX_TEXTURES = Math.min(PIXI.settings.SPRITE_MAX_TEXTURES, 16);
-    PIXI.settings.RENDER_OPTIONS.antialias = true;
-    PIXI.settings.ROUND_PIXELS = true;
-    
     const app = new PIXI.Application({
       width: viewportBounds.width,
       height: viewportBounds.height,
@@ -48,7 +42,6 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
-      powerPreference: 'high-performance',
     });
 
     canvasRef.current.appendChild(app.view as unknown as Node);
@@ -58,74 +51,82 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
     app.stage.addChild(viewport);
     viewportRef.current = viewport;
 
+    // Load sprite sheet
+    if (metadata.sprite_sheet.url) {
+      baseTextureRef.current = new PIXI.BaseTexture(metadata.sprite_sheet.url, {
+        scaleMode: PIXI.SCALE_MODES.LINEAR,
+      });
+    }
+
     return () => {
-      app.destroy(true);
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+      spritesRef.current.forEach(sprite => sprite.destroy());
+      spritesRef.current.clear();
+      if (baseTextureRef.current) {
+        baseTextureRef.current.destroy();
+        baseTextureRef.current = null;
+      }
+      if (appRef.current) {
+        appRef.current.destroy(true);
+        appRef.current = null;
+      }
       if (canvasRef.current?.firstChild) {
         canvasRef.current.removeChild(canvasRef.current.firstChild);
       }
     };
-  }, [viewportBounds.width, viewportBounds.height]);
+  }, [viewportBounds.width, viewportBounds.height, metadata.sprite_sheet.url]);
 
-  // Render points with batching
+  // Render sprites
   useEffect(() => {
     const app = appRef.current;
     const viewport = viewportRef.current;
-    if (!app || !viewport || !isLoaded) return;
+    const baseTexture = baseTextureRef.current;
+    
+    if (!app || !viewport || !baseTexture || !baseTexture.valid) return;
 
-    spritesRef.current.forEach(sprite => sprite.destroy());
-    spritesRef.current.clear();
-    renderedPointsRef.current.clear();
     viewport.removeChildren();
+    spritesRef.current.clear();
 
-    // Create a container for better performance
-    const container = new PIXI.ParticleContainer(points.length, {
-      scale: true,
-      position: true,
-      rotation: true,
-      uvs: true,
-      alpha: true,
-    });
-    container.sortableChildren = true;
-
-    // Create sprites in batches
-    const batchSize = 1000;
-    const totalBatches = Math.ceil(points.length / batchSize);
-
-    const processBatch = (batchIndex: number) => {
-      const start = batchIndex * batchSize;
-      const end = Math.min(start + batchSize, points.length);
-      
-      for (let i = start; i < end; i++) {
-        const point = points[i];
-        const texture = getTexture(point.spriteX, point.spriteY);
-        if (!texture) continue;
-
-        const sprite = new PIXI.Sprite(texture);
-        sprite.width = 30;
-        sprite.height = 30;
-        sprite.x = point.x;
-        sprite.y = point.y;
-        sprite.anchor.set(0.5);
-        sprite.alpha = selectedPoints.includes(point) ? 1 : 0.7;
-        sprite.scale.set(selectedPoints.includes(point) ? 1.2 : 1);
-
-        container.addChild(sprite);
-        spritesRef.current.set(point.id, sprite);
-        renderedPointsRef.current.add(point.id);
-      }
-
-      if (batchIndex + 1 < totalBatches) {
-        requestAnimationFrame(() => processBatch(batchIndex + 1));
-      }
-    };
-
-    processBatch(0);
+    const container = new PIXI.Container();
     viewport.addChild(container);
 
-    // Handle interactions
-    const hitArea = new PIXI.Rectangle(0, 0, viewportBounds.width, viewportBounds.height);
+    const { sprite_width, sprite_height } = metadata.sprite_sheet;
+    const SPRITE_SIZE = 32; // Display size of sprites
+
+    points.forEach((point) => {
+      const texture = new PIXI.Texture(
+        baseTexture,
+        new PIXI.Rectangle(
+          point.spriteX * sprite_width,
+          point.spriteY * sprite_height,
+          sprite_width,
+          sprite_height
+        )
+      );
+
+      const sprite = new PIXI.Sprite(texture);
+      sprite.width = SPRITE_SIZE;
+      sprite.height = SPRITE_SIZE;
+      sprite.x = point.x;
+      sprite.y = point.y;
+      sprite.anchor.set(0.5);
+      sprite.alpha = selectedPoints.includes(point) ? 1 : 0.7;
+      sprite.scale.set(selectedPoints.includes(point) ? 1.2 : 1);
+
+      container.addChild(sprite);
+      spritesRef.current.set(point.id, sprite);
+    });
+  }, [points, selectedPoints, metadata.sprite_sheet]);
+
+  // Handle pan mode
+  useEffect(() => {
+    const app = appRef.current;
+    if (!app) return;
+
     app.stage.eventMode = 'static';
-    app.stage.hitArea = hitArea;
     app.stage.cursor = isPanMode ? 'grab' : 'default';
 
     const handlePan = (event: PIXI.FederatedPointerEvent) => {
@@ -134,35 +135,51 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
       if (event.type === 'pointerdown') {
         isDraggingRef.current = true;
         lastPositionRef.current = { x: event.globalX, y: event.globalY };
-        app.stage.cursor = 'grabbing';
+        if (app.stage) {
+          app.stage.cursor = 'grabbing';
+        }
       } else if (event.type === 'pointermove' && isDraggingRef.current) {
         const dx = event.globalX - lastPositionRef.current.x;
         const dy = event.globalY - lastPositionRef.current.y;
-        viewport.x += dx;
-        viewport.y += dy;
+        if (viewportRef.current) {
+          viewportRef.current.x += dx;
+          viewportRef.current.y += dy;
+        }
         lastPositionRef.current = { x: event.globalX, y: event.globalY };
       } else if (event.type === 'pointerup' || event.type === 'pointerupoutside') {
         isDraggingRef.current = false;
-        app.stage.cursor = isPanMode ? 'grab' : 'default';
+        if (app.stage) {
+          app.stage.cursor = isPanMode ? 'grab' : 'default';
+        }
       }
     };
 
-    app.stage
-      .on('pointerdown', handlePan)
-      .on('pointermove', handlePan)
-      .on('pointerup', handlePan)
-      .on('pointerupoutside', handlePan);
+    const stage = app.stage;
+    if (stage) {
+      stage
+        .on('pointerdown', handlePan)
+        .on('pointermove', handlePan)
+        .on('pointerup', handlePan)
+        .on('pointerupoutside', handlePan);
+
+      cleanupRef.current = () => {
+        stage
+          .off('pointerdown', handlePan)
+          .off('pointermove', handlePan)
+          .off('pointerup', handlePan)
+          .off('pointerupoutside', handlePan);
+      };
+    }
 
     return () => {
-      app.stage
-        .off('pointerdown', handlePan)
-        .off('pointermove', handlePan)
-        .off('pointerup', handlePan)
-        .off('pointerupoutside', handlePan);
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
     };
-  }, [points, isPanMode, isLassoMode, selectedPoints, getTexture, isLoaded, viewportBounds, setSelectedPoints]);
+  }, [isPanMode, isLassoMode]);
 
-  // Update zoom level
+  // Handle zoom
   useEffect(() => {
     if (viewportRef.current && !isDraggingRef.current) {
       viewportRef.current.scale.set(zoomLevel);

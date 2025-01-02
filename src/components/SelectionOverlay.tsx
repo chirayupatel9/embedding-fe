@@ -22,7 +22,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
   const screenToWorld = useCallback((x: number, y: number): [number, number] => {
     const viewport = viewportRef.current;
     if (!viewport) return [x, y];
-
+    
     return [
       (x - viewport.x) / viewport.scale.x,
       (y - viewport.y) / viewport.scale.y
@@ -38,7 +38,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
     if (lassoPaths.length > 2) {
       const lineGenerator = d3.line();
       const closedPath = [...lassoPaths, lassoPaths[0]];
-
+      
       svg.append('path')
         .attr('d', lineGenerator(closedPath))
         .attr('fill', '#3b82f6')
@@ -53,7 +53,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
       const rect = svgRef.current!.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-
+      
       setLassoPaths([[x, y]]);
       setIsDragging(true);
       event.preventDefault();
@@ -61,11 +61,11 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
 
     const handleMouseMove = (event: MouseEvent) => {
       if (!isDragging) return;
-
+      
       const rect = svgRef.current!.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-
+      
       setLassoPaths(prev => {
         const lastPoint = prev[prev.length - 1];
         if (lastPoint) {
@@ -84,7 +84,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
       if (lassoPaths.length >= 3) {
         const worldPaths = lassoPaths.map(([x, y]) => screenToWorld(x, y));
         const closedPath = [...worldPaths, worldPaths[0]];
-
+        
         const selectedPoints = points.filter(point => {
           const worldPoint = screenToWorld(point.x, point.y);
           return d3.polygonContains(closedPath, worldPoint);
@@ -94,7 +94,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
           onSelection(selectedPoints);
         }
       }
-
+      
       setLassoPaths([]);
     };
 
@@ -116,7 +116,7 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
       className="absolute inset-0 pointer-events-auto cursor-crosshair"
       width={viewportBounds.width}
       height={viewportBounds.height}
-      style={{
+      style={{ 
         pointerEvents: 'all',
         touchAction: 'none'
       }}
