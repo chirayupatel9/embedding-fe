@@ -41,9 +41,9 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
       backgroundColor: 0xffffff,
       antialias: true,
       resolution: window.devicePixelRatio || 1,
-      autoDensity: true,
+      autoDensity: false,
     });
-
+    // console.log("view",viewportBounds)
     canvasRef.current.appendChild(app.view as unknown as Node);
     appRef.current = app;
 
@@ -95,7 +95,8 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
 
     const { sprite_width, sprite_height } = metadata.sprite_sheet;
     const SPRITE_SIZE = 32; // Display size of sprites
-
+    // console.log("points",viewport);
+    
     points.forEach((point) => {
       const texture = new PIXI.Texture(
         baseTexture,
@@ -115,7 +116,8 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
       sprite.anchor.set(0.5);
       sprite.alpha = selectedPoints.includes(point) ? 1 : 0.7;
       sprite.scale.set(selectedPoints.includes(point) ? 1.2 : 1);
-
+        // console.log("sprites",sprite);
+        
       container.addChild(sprite);
       spritesRef.current.set(point.id, sprite);
     });

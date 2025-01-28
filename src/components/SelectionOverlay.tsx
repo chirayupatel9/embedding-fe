@@ -55,6 +55,8 @@ export const SelectionOverlay: React.FC<SelectionOverlayProps> = ({
       const y = event.clientY - rect.top;
       
       setLassoPaths([[x, y]]);
+      // console.log('path',x,y);
+      
       setIsDragging(true);
       event.preventDefault();
     };

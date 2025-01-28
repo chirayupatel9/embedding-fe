@@ -9,8 +9,9 @@ import { ToolbarControls } from './ToolbarControls';
 import { ZoomControls } from './ZoomControls';
 import { SelectionInfo } from './SelectionInfo';
 
-const CANVAS_WIDTH = Math.min(1000, window.innerWidth - 32);
-const CANVAS_HEIGHT = Math.min(800, window.innerHeight - 200);
+const CANVAS_WIDTH = window.innerWidth - 32
+const CANVAS_HEIGHT = window.innerHeight - 200
+console.log("wh",CANVAS_HEIGHT,CANVAS_WIDTH)
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
 
@@ -28,6 +29,7 @@ export const EmbeddingsVisualizer: React.FC = () => {
 
   useEffect(() => {
     if (originalPoints && originalPoints.length > 0) {
+      console.log("originalPoints",originalPoints[0])
       const projectedPoints = createProjection(originalPoints, CANVAS_WIDTH, CANVAS_HEIGHT);
       setDisplayedPoints(projectedPoints);
     }
