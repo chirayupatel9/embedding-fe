@@ -1,6 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
-import { Point, Metadata } from '../types/embedding';
+import { Point, Metadata, ImageDetails } from '../types/embedding';
+import { getImageDetails } from '../services/images';
+import { ImageDetailsModal } from './ImageDetailsModal';
 
 interface PixiRendererProps {
   points: Point[];
@@ -30,6 +32,7 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
   const isDraggingRef = useRef(false);
   const lastPositionRef = useRef({ x: 0, y: 0 });
   const cleanupRef = useRef<(() => void) | null>(null);
+  const [selectedImageDetails, setSelectedImageDetails] = useState<ImageDetails | null>(null);
 
   // Initialize PIXI Application
   useEffect(() => {
@@ -43,7 +46,7 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
       resolution: window.devicePixelRatio || 1,
       autoDensity: false,
     });
-    // console.log("view",viewportBounds)
+
     canvasRef.current.appendChild(app.view as unknown as Node);
     appRef.current = app;
 
@@ -51,7 +54,6 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
     app.stage.addChild(viewport);
     viewportRef.current = viewport;
 
-    // Load sprite sheet
     if (metadata.sprite_sheet.url) {
       baseTextureRef.current = new PIXI.BaseTexture(metadata.sprite_sheet.url, {
         scaleMode: PIXI.SCALE_MODES.LINEAR,
@@ -79,6 +81,17 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
     };
   }, [viewportBounds.width, viewportBounds.height, metadata.sprite_sheet.url]);
 
+  const handleSpriteClick = async (point: Point) => {
+    if (!point.metadata?.image_id) return;
+    
+    try {
+      const details = await getImageDetails(point.metadata.image_id);
+      setSelectedImageDetails(details);
+    } catch (error) {
+      console.error('Failed to fetch image details:', error);
+    }
+  };
+
   // Render sprites
   useEffect(() => {
     const app = appRef.current;
@@ -94,8 +107,7 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
     viewport.addChild(container);
 
     const { sprite_width, sprite_height } = metadata.sprite_sheet;
-    const SPRITE_SIZE = 32; // Display size of sprites
-    // console.log("points",viewport);
+    const SPRITE_SIZE = 32;
     
     points.forEach((point) => {
       const texture = new PIXI.Texture(
@@ -116,12 +128,19 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
       sprite.anchor.set(0.5);
       sprite.alpha = selectedPoints.includes(point) ? 1 : 0.7;
       sprite.scale.set(selectedPoints.includes(point) ? 1.2 : 1);
-        // console.log("sprites",sprite);
-        
+      sprite.eventMode = 'static';
+      sprite.cursor = 'pointer';
+      
+      sprite.on('pointerdown', () => {
+        if (!isPanMode && !isLassoMode) {
+          handleSpriteClick(point);
+        }
+      });
+
       container.addChild(sprite);
       spritesRef.current.set(point.id, sprite);
     });
-  }, [points, selectedPoints, metadata.sprite_sheet]);
+  }, [points, selectedPoints, metadata.sprite_sheet, isPanMode, isLassoMode]);
 
   // Handle pan mode
   useEffect(() => {
@@ -188,5 +207,13 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
     }
   }, [zoomLevel]);
 
-  return <div ref={canvasRef} className="w-full h-full" />;
+  return (
+    <>
+      <div ref={canvasRef} className="w-full h-full" />
+      <ImageDetailsModal
+        details={selectedImageDetails}
+        onClose={() => setSelectedImageDetails(null)}
+      />
+    </>
+  );
 };

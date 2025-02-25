@@ -35,3 +35,7 @@ export interface Point {
   spriteY: number;
   originalItem: EmbeddingItem;
 }
+export interface ImageDetails {
+  image_id: string;
+  document_details: any;
+}

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import * as PIXI from 'pixi.js';
 import { Lasso, Move, Hand, MinusCircle, PlusCircle, Loader2 } from 'lucide-react';
 import { Point } from '../types/embedding';
 import { useEmbeddingsData } from '../hooks/useEmbeddingsData';
