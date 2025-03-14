@@ -50,7 +50,6 @@ export const useSprites = (
 
   const renderSprites = useCallback((app: PIXI.Application, viewport: PIXI.Container | undefined) => {
     if (!viewport || !metadata.sprite_sheet) return;
-
     cleanupResources();
 
     const baseTexture = PIXI.BaseTexture.from(metadata.sprite_sheet.url || 'https://placehold.co/1000x1000/png', {

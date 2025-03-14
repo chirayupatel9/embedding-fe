@@ -6,6 +6,7 @@ export interface ApiResponse {
 }
 
 export interface EmbeddingItem {
+  image_id: string;
   embedding: number[];
   label: number;
   category: string;
@@ -27,5 +28,6 @@ export interface Point {
   category: string;
   spriteX: number;
   spriteY: number;
+  image_id: string;
   originalItem: EmbeddingItem;
 }

@@ -1,8 +1,9 @@
-const API_BASE_URL = 'http://localhost:8001'; // Update this with your actual API URL
+const API_BASE_URL = 'http://localhost:8000/api'; // Update this with your actual API URL
 
 export async function getImageDetails(imageId: string): Promise<ImageDetails> {
-  const response = await fetch(`${API_BASE_URL}/get-image-details/${imageId}`);
-  
+  console.log('imageId', imageId);
+  const response = await fetch(`${API_BASE_URL}/fetch-image/${imageId}`);
+  console.log('response', response);
   if (!response.ok) {
     throw new Error('Failed to fetch image details');
   }

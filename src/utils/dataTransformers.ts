@@ -8,6 +8,7 @@ export const transformEmbeddingsData = (items: EmbeddingItem[]): Point[] => {
     category: item.category,
     spriteX: item.spriteX,
     spriteY: item.spriteY,
+    image_id: item.image_id,
     originalItem: item
   }));
 };

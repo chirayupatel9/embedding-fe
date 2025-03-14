@@ -19,6 +19,7 @@ export interface EmbeddingItem {
   category: string;
   spriteX: number;
   spriteY: number;
+  image_id: string;
 }
 
 export interface Metadata {
@@ -33,6 +34,7 @@ export interface Point {
   category: string;
   spriteX: number;
   spriteY: number;
+  image_id: string;
   originalItem: EmbeddingItem;
 }
 export interface ImageDetails {

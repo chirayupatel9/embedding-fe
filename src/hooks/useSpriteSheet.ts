@@ -18,11 +18,8 @@ export const useSpriteSheet = () => {
       try {
         let spritePath: string;
         let metadata: Metadata;
-
-        if (IS_DEVELOPMENT) {
-          spritePath = mockApiResponse.spritePath;
-          metadata = mockMetadata;
-        } else {
+        
+       
           const response = await fetch(API_ENDPOINT);
           if (!response.ok) {
             throw new Error(`API request failed with status ${response.status}`);
@@ -30,15 +27,13 @@ export const useSpriteSheet = () => {
 
           const apiResponse: ApiResponse = await response.json();
           spritePath = apiResponse.spritePath;
-
           const metadataResponse = await fetch(apiResponse.itemsPath);
           if (!metadataResponse.ok) {
             throw new Error(`Metadata request failed with status ${metadataResponse.status}`);
           }
 
-          metadata = await metadataResponse.json();
-        }
-
+        metadata = await metadataResponse.json();
+        
         spriteMetaRef.current = metadata.sprite_sheet;
 
         // Create and load the base texture
@@ -49,11 +44,12 @@ export const useSpriteSheet = () => {
         });
 
         // Handle loading events
-        baseTexture.on('error', (err: Error) => {
-          console.error('Texture loading error:', err);
-          setError(`Failed to load sprite sheet: ${err.message}`);
-          setIsLoaded(false);
+        baseTexture.on('error', (event) => {
+          console.error('Texture loading error:', event);
+          setError('Failed to load sprite sheet');
+          setIsLoaded(true);
         });
+        
 
         baseTexture.on('loaded', () => {
           baseTextureRef.current = baseTexture;

@@ -1,21 +1,17 @@
 import axios from 'axios';
 import { ApiResponse, Metadata } from '../types/embedding';
 import { mockMetadata } from '../utils/mockData';
+import { log } from 'console';
 
 const IS_DEVELOPMENT = import.meta.env.DEV;
 const API_BASE_URL = 'http://localhost:8000/api';
 
 export const fetchEmbeddingsData = async (): Promise<Metadata> => {
-  if (IS_DEVELOPMENT) {
-    return Promise.resolve(mockMetadata);
-  }
-
   try {
     const { data: apiResponse } = await axios.get<ApiResponse>(`${API_BASE_URL}/embeddings`);
     
     // Fetch metadata from the provided path
     const { data: metadata } = await axios.get<Metadata>(apiResponse.itemsPath);
-    
     return {
       ...metadata,
       sprite_sheet: {

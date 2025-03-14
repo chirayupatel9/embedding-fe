@@ -12,30 +12,37 @@ const api = axios.create({
 });
 
 export const fetchEmbeddingsData = async (): Promise<Metadata> => {
-  if (IS_DEVELOPMENT) {
-    return Promise.resolve(mockMetadata);
-  }
 
   try {
     // First, fetch the API response with paths
     const { data: apiResponse } = await api.get<ApiResponse>(API_CONFIG.ENDPOINTS.EMBEDDINGS);
-    
     if (!apiResponse?.itemsPath || !apiResponse?.spritePath) {
       throw new Error('Invalid API response: missing required paths');
     }
-
     // Then fetch the metadata using the provided path
-    const { data: metadata } = await api.get<Metadata>(apiResponse.itemsPath);
-    
-    if (!metadata?.items || !metadata?.sprite_sheet) {
+    const metadata = apiResponse.itemsPath
+    if (!metadata || !apiResponse?.spritePath) {
       throw new Error('Invalid metadata format');
     }
-
+    // console.log("metadata", { ...metadata,sprite_sheet: {
+    //   columns: 10,
+    //   rows: 10,
+    //   width: 3200,
+    //   height: 3200,
+    //   sprite_width: 32,
+    //   sprite_height: 32,
+    //   url: apiResponse.spritePath
+    // } });
     // Combine the metadata with the sprite path
     return {
       ...metadata,
       sprite_sheet: {
-        ...metadata.sprite_sheet,
+        columns: 10,
+        rows: 10,
+        width: 3200,
+        height: 3200,
+        sprite_width: 32,
+        sprite_height: 32,
         url: apiResponse.spritePath
       }
     };

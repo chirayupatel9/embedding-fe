@@ -35,5 +35,5 @@ export const mockMetadata: Metadata = {
 
 export const mockApiResponse: ApiResponse = {
   itemsPath: '/data/metadata.json',
-  spritePath: '/images/sprite_sheet.png'
+  spritePath: '/output/sprite_sheet.png'
 };

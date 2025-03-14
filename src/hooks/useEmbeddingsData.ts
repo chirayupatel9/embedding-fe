@@ -14,15 +14,11 @@ export const useEmbeddingsData = () => {
       try {
         setIsLoading(true);
         setError(null);
-        
         const data = await fetchEmbeddingsData();
-        
-        if (!data?.items) {
+        if (!data) {
           throw new Error('Invalid data format: missing items');
         }
-
         const transformedPoints = transformEmbeddingsData(data.items);
-
         setMetadata(data);
         setPoints(transformedPoints);
       } catch (err) {

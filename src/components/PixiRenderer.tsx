@@ -36,8 +36,8 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
 
   // Initialize PIXI Application
   useEffect(() => {
+    // console.log('first render',metadata);
     if (!canvasRef.current) return;
-
     const app = new PIXI.Application({
       width: viewportBounds.width,
       height: viewportBounds.height,
@@ -46,20 +46,20 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
       resolution: window.devicePixelRatio || 1,
       autoDensity: false,
     });
-
+    
     canvasRef.current.appendChild(app.view as unknown as Node);
     appRef.current = app;
-
+    
     const viewport = new PIXI.Container();
     app.stage.addChild(viewport);
     viewportRef.current = viewport;
-
+    
     if (metadata.sprite_sheet.url) {
       baseTextureRef.current = new PIXI.BaseTexture(metadata.sprite_sheet.url, {
         scaleMode: PIXI.SCALE_MODES.LINEAR,
       });
     }
-
+    
     return () => {
       if (cleanupRef.current) {
         cleanupRef.current();
@@ -80,25 +80,27 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
       }
     };
   }, [viewportBounds.width, viewportBounds.height, metadata.sprite_sheet.url]);
-
+  
+  // console.log('second render',point.originalItem);
   const handleSpriteClick = async (point: Point) => {
-    if (!point.metadata?.image_id) return;
+    if (!point.originalItem.label) return;
     
     try {
-      const details = await getImageDetails(point.metadata.image_id);
-      setSelectedImageDetails(details);
-    } catch (error) {
-      console.error('Failed to fetch image details:', error);
-    }
-  };
-
-  // Render sprites
-  useEffect(() => {
-    const app = appRef.current;
-    const viewport = viewportRef.current;
-    const baseTexture = baseTextureRef.current;
+        // Fetch image details if needed
+        const details = await getImageDetails(point.originalItem.image_id);
+        setSelectedImageDetails(details);
+      } catch (error) {
+        console.error('Failed to fetch image details:', error);
+      }
+    };
     
-    if (!app || !viewport || !baseTexture || !baseTexture.valid) return;
+    useEffect(() => {
+      const app = appRef.current;
+      const viewport = viewportRef.current;
+      const baseTexture = baseTextureRef.current;
+      
+      console.log('firsasast',app,viewport,baseTexture,baseTexture?.valid);
+      if (!app || !viewport || !baseTexture || !baseTexture.valid) return;
 
     viewport.removeChildren();
     spritesRef.current.clear();
@@ -108,39 +110,42 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
 
     const { sprite_width, sprite_height } = metadata.sprite_sheet;
     const SPRITE_SIZE = 32;
-    
+    console.log(points)
     points.forEach((point) => {
-      const texture = new PIXI.Texture(
-        baseTexture,
-        new PIXI.Rectangle(
-          point.spriteX * sprite_width,
-          point.spriteY * sprite_height,
-          sprite_width,
-          sprite_height
-        )
-      );
+        const texture = new PIXI.Texture(
+            baseTexture,
+            new PIXI.Rectangle(
+                point.spriteX * sprite_width,
+                point.spriteY * sprite_height,
+                sprite_width,
+                sprite_height
+            )
+        );
 
-      const sprite = new PIXI.Sprite(texture);
-      sprite.width = SPRITE_SIZE;
-      sprite.height = SPRITE_SIZE;
-      sprite.x = point.x;
-      sprite.y = point.y;
-      sprite.anchor.set(0.5);
-      sprite.alpha = selectedPoints.includes(point) ? 1 : 0.7;
-      sprite.scale.set(selectedPoints.includes(point) ? 1.2 : 1);
-      sprite.eventMode = 'static';
-      sprite.cursor = 'pointer';
-      
-      sprite.on('pointerdown', () => {
-        if (!isPanMode && !isLassoMode) {
-          handleSpriteClick(point);
-        }
-      });
+        const sprite = new PIXI.Sprite(texture);
+        sprite.width = SPRITE_SIZE;
+        sprite.height = SPRITE_SIZE;
+        sprite.x = point.x;
+        sprite.y = point.y;
+        sprite.anchor.set(0.5);
+        sprite.alpha = selectedPoints.includes(point) ? 1 : 0.7;
+        sprite.scale.set(selectedPoints.includes(point) ? 1.2 : 1);
+        sprite.eventMode = 'static';
+        sprite.cursor = 'pointer';
 
-      container.addChild(sprite);
-      spritesRef.current.set(point.id, sprite);
+        // **Attach Click Event**
+        sprite.on('pointerdown', () => {
+            if (!isPanMode && !isLassoMode) {
+              console.log('first click');
+                handleSpriteClick(point);
+            }
+        });
+
+        container.addChild(sprite);
+        spritesRef.current.set(point.id, sprite);
     });
-  }, [points, selectedPoints, metadata.sprite_sheet, isPanMode, isLassoMode]);
+}, [points, selectedPoints, metadata.sprite_sheet, isPanMode, isLassoMode]);
+
 
   // Handle pan mode
   useEffect(() => {
