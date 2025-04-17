@@ -1,12 +1,10 @@
-const API_BASE_URL = 'http://localhost:8000/api'; // Update this with your actual API URL
+import { API_CONFIG } from './api/config';
 
-export async function getImageDetails(imageId: string): Promise<ImageDetails> {
-  console.log('imageId', imageId);
-  const response = await fetch(`${API_BASE_URL}/fetch-image/${imageId}`);
-  console.log('response', response);
-  if (!response.ok) {
-    throw new Error('Failed to fetch image details');
-  }
-  
-  return response.json();
+
+export async function getImageDetails(image_id: string) {
+  const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.GET_IMAGE}/${image_id}`);
+  if (!response.ok) throw new Error('Failed to fetch image');
+  const blob = await response.blob();
+  const image_url = URL.createObjectURL(blob);
+  return { image_id, image_url, document_details: null };
 }

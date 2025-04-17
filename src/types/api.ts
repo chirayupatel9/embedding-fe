@@ -6,12 +6,12 @@ export interface ApiResponse {
 }
 
 export interface EmbeddingItem {
-  image_id: string;
   embedding: number[];
   label: number;
   category: string;
   spriteX: number;
   spriteY: number;
+  image_id: number;
 }
 
 export interface SpriteSheetMeta {
@@ -22,12 +22,11 @@ export interface SpriteSheetMeta {
 }
 
 export interface Point {
-  id: number;
+  image_id: number;
   x: number;
   y: number;
   category: string;
   spriteX: number;
   spriteY: number;
-  image_id: string;
   originalItem: EmbeddingItem;
 }

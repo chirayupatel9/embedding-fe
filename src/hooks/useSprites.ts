@@ -21,7 +21,7 @@ export const useSprites = (
       return textureCache.current.get(key)!;
     }
 
-    const { sprite_width, sprite_height } = metadata.sprite_sheet;
+    const { sprite_width, sprite_height } = metadata.spritePath;
     const texture = new PIXI.Texture(
       baseTexture,
       new PIXI.Rectangle(
@@ -34,7 +34,7 @@ export const useSprites = (
 
     textureCache.current.set(key, texture);
     return texture;
-  }, [metadata.sprite_sheet]);
+  }, [metadata.spritePath]);
 
   const cleanupResources = useCallback(() => {
     spritesRef.current.forEach(sprite => sprite.destroy());
@@ -49,10 +49,11 @@ export const useSprites = (
   }, []);
 
   const renderSprites = useCallback((app: PIXI.Application, viewport: PIXI.Container | undefined) => {
-    if (!viewport || !metadata.sprite_sheet) return;
+    if (!viewport || !metadata.spritePath) return;
+
     cleanupResources();
 
-    const baseTexture = PIXI.BaseTexture.from(metadata.sprite_sheet.url || 'https://placehold.co/1000x1000/png', {
+    const baseTexture = PIXI.BaseTexture.from(metadata.spritePath || 'https://placehold.co/1000x1000/png', {
       scaleMode: PIXI.SCALE_MODES.LINEAR,
       resolution: window.devicePixelRatio || 1,
     });
@@ -104,7 +105,7 @@ export const useSprites = (
 
     renderBatch();
     viewport.addChild(containerRef.current);
-  }, [points, selectedPoints, metadata.sprite_sheet, getTexture, cleanupResources]);
+  }, [points, selectedPoints, metadata.spritePath, getTexture, cleanupResources]);
 
   return { renderSprites };
 };

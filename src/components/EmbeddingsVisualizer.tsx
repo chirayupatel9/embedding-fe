@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
 import { Lasso, Move, Hand, MinusCircle, PlusCircle, Loader2 } from 'lucide-react';
 import { Point } from '../types/embedding';
@@ -26,27 +26,47 @@ export const EmbeddingsVisualizer: React.FC = () => {
   const [viewportBounds] = useState({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
   const [isProjectedView, setIsProjectedView] = useState(false);
   const viewportRef = useRef<PIXI.Container>();
+  const lastProjectedPointsRef = useRef<Point[]>([]);
 
+  // Map API items to Point type before projecting
   useEffect(() => {
     if (originalPoints && originalPoints.length > 0) {
-      const projectedPoints = createProjection(originalPoints, CANVAS_WIDTH, CANVAS_HEIGHT);
+      const points: Point[] = originalPoints.map((item: any, idx: number) => ({
+        id: item.label ?? idx,
+        x: 0, // will be set by projection
+        y: 0, // will be set by projection
+        category: item.category,
+        spriteX: item.spriteX ?? 0,
+        spriteY: item.spriteY ?? 0,
+        embedding: item.embedding,
+        originalItem: {
+          embedding: item.embedding,
+          label: item.label ?? idx,
+          category: item.category,
+          spriteX: item.spriteX ?? 0,
+          spriteY: item.spriteY ?? 0,
+          image_id: item.image_id,
+        },
+      }));
+      console.log('Mapped points sample:', points[0]);
+      const projectedPoints = createProjection(points, CANVAS_WIDTH, CANVAS_HEIGHT);
+      lastProjectedPointsRef.current = projectedPoints;
       setDisplayedPoints(projectedPoints);
     }
   }, [originalPoints]);
 
-  const handleZoomChange = (newZoom: number) => {
+  const handleZoomChange = useCallback((newZoom: number) => {
     setZoomLevel(Math.min(Math.max(newZoom, MIN_ZOOM), MAX_ZOOM));
-  };
+  }, []);
 
-  const handleModeChange = (mode: 'pan' | 'lasso' | null) => {
+  const handleModeChange = useCallback((mode: 'pan' | 'lasso' | null) => {
     setIsLassoMode(mode === 'lasso');
     setIsPanMode(mode === 'pan');
-  };
+  }, []);
 
-  const handleReset = () => {
-    if (originalPoints && originalPoints.length > 0) {
-      const projectedPoints = createProjection(originalPoints, CANVAS_WIDTH, CANVAS_HEIGHT);
-      setDisplayedPoints(projectedPoints);
+  const handleReset = useCallback(() => {
+    if (lastProjectedPointsRef.current.length > 0) {
+      setDisplayedPoints(lastProjectedPointsRef.current);
       setSelectedPoints([]);
       setZoomLevel(1);
       setIsLassoMode(false);
@@ -57,9 +77,9 @@ export const EmbeddingsVisualizer: React.FC = () => {
         viewportRef.current.scale.set(1);
       }
     }
-  };
+  }, []);
 
-  const handleSelectionComplete = (selected: Point[]) => {
+  const handleSelectionComplete = useCallback((selected: Point[]) => {
     if (selected.length > 0) {
       const projectedSelection = createProjection(selected, CANVAS_WIDTH, CANVAS_HEIGHT);
       setSelectedPoints(selected);
@@ -72,7 +92,7 @@ export const EmbeddingsVisualizer: React.FC = () => {
       }
       setZoomLevel(1);
     }
-  };
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT]);
 
   if (error) {
     return (

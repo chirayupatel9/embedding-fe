@@ -1,6 +1,6 @@
 export interface ApiResponse {
-  itemsPath: string;  // Path to metadata.json
-  spritePath: string; // Path to sprite_sheet.png
+  itemsPath: EmbeddingItem[];  // The actual data array
+  spritePath: SpriteSheetMeta; // Sprite sheet metadata
 }
 
 export interface SpriteSheetMeta {
@@ -19,7 +19,6 @@ export interface EmbeddingItem {
   category: string;
   spriteX: number;
   spriteY: number;
-  image_id: string;
 }
 
 export interface Metadata {
@@ -34,10 +33,12 @@ export interface Point {
   category: string;
   spriteX: number;
   spriteY: number;
-  image_id: string;
+  embedding: number[];
   originalItem: EmbeddingItem;
 }
+
 export interface ImageDetails {
   image_id: string;
   document_details: any;
+  image_url?: string;
 }

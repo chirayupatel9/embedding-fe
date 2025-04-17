@@ -28,16 +28,15 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const spritesRef = useRef<Map<number, PIXI.Sprite>>(new Map());
-  const baseTextureRef = useRef<PIXI.BaseTexture | null>(null);
   const isDraggingRef = useRef(false);
   const lastPositionRef = useRef({ x: 0, y: 0 });
   const cleanupRef = useRef<(() => void) | null>(null);
   const [selectedImageDetails, setSelectedImageDetails] = useState<ImageDetails | null>(null);
 
-  // Initialize PIXI Application
+  // Initialize PIXI Application and viewport
   useEffect(() => {
-    // console.log('first render',metadata);
     if (!canvasRef.current) return;
+
     const app = new PIXI.Application({
       width: viewportBounds.width,
       height: viewportBounds.height,
@@ -46,106 +45,91 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
       resolution: window.devicePixelRatio || 1,
       autoDensity: false,
     });
-    
+
     canvasRef.current.appendChild(app.view as unknown as Node);
     appRef.current = app;
-    
+
+    // Create viewport container
     const viewport = new PIXI.Container();
-    app.stage.addChild(viewport);
     viewportRef.current = viewport;
-    
-    if (metadata.sprite_sheet.url) {
-      baseTextureRef.current = new PIXI.BaseTexture(metadata.sprite_sheet.url, {
-        scaleMode: PIXI.SCALE_MODES.LINEAR,
-      });
-    }
-    
+    app.stage.addChild(viewport);
+
+    // Cleanup on unmount
     return () => {
-      if (cleanupRef.current) {
-        cleanupRef.current();
-        cleanupRef.current = null;
-      }
-      spritesRef.current.forEach(sprite => sprite.destroy());
+      app.destroy(true, { children: true });
       spritesRef.current.clear();
-      if (baseTextureRef.current) {
-        baseTextureRef.current.destroy();
-        baseTextureRef.current = null;
-      }
-      if (appRef.current) {
-        appRef.current.destroy(true);
-        appRef.current = null;
-      }
-      if (canvasRef.current?.firstChild) {
-        canvasRef.current.removeChild(canvasRef.current.firstChild);
-      }
     };
-  }, [viewportBounds.width, viewportBounds.height, metadata.sprite_sheet.url]);
-  
-  // console.log('second render',point.originalItem);
-  const handleSpriteClick = async (point: Point) => {
-    if (!point.originalItem.label) return;
-    
-    try {
-        // Fetch image details if needed
-        const details = await getImageDetails(point.originalItem.image_id);
-        setSelectedImageDetails(details);
-      } catch (error) {
-        console.error('Failed to fetch image details:', error);
-      }
-    };
-    
-    useEffect(() => {
-      const app = appRef.current;
-      const viewport = viewportRef.current;
-      const baseTexture = baseTextureRef.current;
-      
-      console.log('firsasast',app,viewport,baseTexture,baseTexture?.valid);
-      if (!app || !viewport || !baseTexture || !baseTexture.valid) return;
+  }, [viewportBounds, viewportRef]);
 
-    viewport.removeChildren();
-    spritesRef.current.clear();
+  // Sprite creation: only when points or metadata change
+  useEffect(() => {
+    if (!metadata?.sprite_sheet?.url || !viewportRef.current) return;
+    const spriteSheetUrl = metadata.sprite_sheet.url;
+    const spriteWidth = metadata.sprite_sheet.sprite_width || 32;
+    const spriteHeight = metadata.sprite_sheet.sprite_height || 32;
 
-    const container = new PIXI.Container();
-    viewport.addChild(container);
+    PIXI.Assets.load(spriteSheetUrl).then((texture) => {
+      // Remove old sprites from viewport
+      spritesRef.current.forEach(sprite => {
+        viewportRef.current?.removeChild(sprite);
+        sprite.destroy();
+      });
+      spritesRef.current.clear();
 
-    const { sprite_width, sprite_height } = metadata.sprite_sheet;
-    const SPRITE_SIZE = 32;
-    console.log(points)
-    points.forEach((point) => {
-        const texture = new PIXI.Texture(
-            baseTexture,
+      // Create new sprites for each point
+      points.forEach((point) => {
+        const sprite = new PIXI.Sprite(
+          new PIXI.Texture(
+            texture,
             new PIXI.Rectangle(
-                point.spriteX * sprite_width,
-                point.spriteY * sprite_height,
-                sprite_width,
-                sprite_height
+              point.spriteX * spriteWidth,
+              point.spriteY * spriteHeight,
+              spriteWidth,
+              spriteHeight
             )
+          )
         );
-
-        const sprite = new PIXI.Sprite(texture);
-        sprite.width = SPRITE_SIZE;
-        sprite.height = SPRITE_SIZE;
-        sprite.x = point.x;
-        sprite.y = point.y;
         sprite.anchor.set(0.5);
-        sprite.alpha = selectedPoints.includes(point) ? 1 : 0.7;
-        sprite.scale.set(selectedPoints.includes(point) ? 1.2 : 1);
+        sprite.scale.set(0.5);
+        sprite.position.set(point.x, point.y);
         sprite.eventMode = 'static';
         sprite.cursor = 'pointer';
-
-        // **Attach Click Event**
-        sprite.on('pointerdown', () => {
-            if (!isPanMode && !isLassoMode) {
-              console.log('first click');
-                handleSpriteClick(point);
-            }
-        });
-
-        container.addChild(sprite);
+        sprite.on('pointerdown', () => handleSpriteClick(point));
         spritesRef.current.set(point.id, sprite);
+        viewportRef.current?.addChild(sprite);
+      });
     });
-}, [points, selectedPoints, metadata.sprite_sheet, isPanMode, isLassoMode]);
+  }, [points, metadata, viewportRef]);
 
+  // Update sprite positions for existing sprites
+  useEffect(() => {
+    if (!viewportRef.current) return;
+    points.forEach((point) => {
+      const sprite = spritesRef.current.get(point.id);
+      if (sprite) {
+        sprite.position.set(point.x, point.y);
+      }
+    });
+  }, [points]);
+
+  // Update sprite visibility for selected points
+  useEffect(() => {
+    if (!viewportRef.current) return;
+    spritesRef.current.forEach((sprite, id) => {
+      const isSelected = selectedPoints.some((point) => point.id === id);
+      sprite.alpha = isSelected ? 1 : 0.5;
+    });
+  }, [selectedPoints]);
+
+  const handleSpriteClick = async (point: Point) => {
+    try {
+      const details = await getImageDetails(point.originalItem.image_id);
+      console.log('details:', details);
+      setSelectedImageDetails(details);
+    } catch (error) {
+      console.error('Error fetching image details:', error);
+    }
+  };
 
   // Handle pan mode
   useEffect(() => {
@@ -157,7 +141,6 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
 
     const handlePan = (event: PIXI.FederatedPointerEvent) => {
       if (!isPanMode || isLassoMode) return;
-      
       if (event.type === 'pointerdown') {
         isDraggingRef.current = true;
         lastPositionRef.current = { x: event.globalX, y: event.globalY };
@@ -215,10 +198,12 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
   return (
     <>
       <div ref={canvasRef} className="w-full h-full" />
-      <ImageDetailsModal
-        details={selectedImageDetails}
-        onClose={() => setSelectedImageDetails(null)}
-      />
+      {selectedImageDetails && (
+        <ImageDetailsModal
+          details={selectedImageDetails}
+          onClose={() => setSelectedImageDetails(null)}
+        />
+      )}
     </>
   );
 };

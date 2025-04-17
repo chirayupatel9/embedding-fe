@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
 import { ApiResponse, Metadata, SpriteSheetMeta } from '../types/embedding';
-import { mockApiResponse, mockMetadata } from '../utils/mockData';
+import { API_CONFIG } from '../services/api/config';
 
-const API_ENDPOINT = 'http://localhost:8000/api/embeddings';
-const IS_DEVELOPMENT = import.meta.env.DEV;
+const API_ENDPOINT = `${API_CONFIG.BASE_URL.ENDPOINTS.EMBEDDINGS}`;
 
 export const useSpriteSheet = () => {
   const baseTextureRef = useRef<PIXI.BaseTexture | null>(null);
@@ -18,8 +17,6 @@ export const useSpriteSheet = () => {
       try {
         let spritePath: string;
         let metadata: Metadata;
-        
-       
           const response = await fetch(API_ENDPOINT);
           if (!response.ok) {
             throw new Error(`API request failed with status ${response.status}`);
@@ -27,29 +24,30 @@ export const useSpriteSheet = () => {
 
           const apiResponse: ApiResponse = await response.json();
           spritePath = apiResponse.spritePath;
+
           const metadataResponse = await fetch(apiResponse.itemsPath);
           if (!metadataResponse.ok) {
             throw new Error(`Metadata request failed with status ${metadataResponse.status}`);
           }
 
-        metadata = await metadataResponse.json();
+          metadata = await metadataResponse.json();
         
-        spriteMetaRef.current = metadata.sprite_sheet;
+
+        spriteMetaRef.current = metadata.spritePath;
 
         // Create and load the base texture
         const baseTexture = new PIXI.BaseTexture(spritePath, {
           scaleMode: PIXI.SCALE_MODES.LINEAR,
-          width: metadata.sprite_sheet.width,
-          height: metadata.sprite_sheet.height
+          width: metadata.spritePath.width,
+          height: metadata.spritePath.height
         });
 
         // Handle loading events
-        baseTexture.on('error', (event) => {
-          console.error('Texture loading error:', event);
-          setError('Failed to load sprite sheet');
-          setIsLoaded(true);
+        baseTexture.on('error', (err: Error) => {
+          console.error('Texture loading error:', err);
+          setError(`Failed to load sprite sheet: ${err.message}`);
+          setIsLoaded(false);
         });
-        
 
         baseTexture.on('loaded', () => {
           baseTextureRef.current = baseTexture;
