@@ -40,6 +40,10 @@ export interface Point {
 
 export interface ImageDetails {
   image_id: string;
-  document_details: any;
-  image_url?: string;
+  filename: string;
+  image_data: string; // base64 encoded image
+  content_type: string;
+  has_metadata: boolean;
+  document_details?: any; // Keep for backward compatibility
+  [key: string]: any; // Allow additional dynamic properties
 }

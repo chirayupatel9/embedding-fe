@@ -32,6 +32,8 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
   const lastPositionRef = useRef({ x: 0, y: 0 });
   const cleanupRef = useRef<(() => void) | null>(null);
   const [selectedImageDetails, setSelectedImageDetails] = useState<ImageDetails | null>(null);
+  const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
+  const [spriteSheetTexture, setSpriteSheetTexture] = useState<PIXI.Texture | null>(null);
 
   // Initialize PIXI Application and viewport
   useEffect(() => {
@@ -69,6 +71,9 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
     const spriteHeight = metadata.sprite_sheet.sprite_height || 32;
 
     PIXI.Assets.load(spriteSheetUrl).then((texture) => {
+      // Store the sprite sheet texture for sidebar use
+      setSpriteSheetTexture(texture);
+      
       // Remove old sprites from viewport
       spritesRef.current.forEach(sprite => {
         viewportRef.current?.removeChild(sprite);
@@ -123,6 +128,7 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
 
   const handleSpriteClick = async (point: Point) => {
     try {
+      setSelectedPoint(point); // Store the selected point
       const details = await getImageDetails(point.originalItem.image_id);
       console.log('details:', details);
       setSelectedImageDetails(details);
@@ -201,7 +207,15 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
       {selectedImageDetails && (
         <SidebarImageDetails
           details={selectedImageDetails}
-          onClose={() => setSelectedImageDetails(null)}
+          onClose={() => {
+            setSelectedImageDetails(null);
+            setSelectedPoint(null);
+          }}
+          spriteTexture={spriteSheetTexture || undefined}
+          spriteX={selectedPoint?.spriteX}
+          spriteY={selectedPoint?.spriteY}
+          spriteWidth={metadata?.sprite_sheet?.sprite_width}
+          spriteHeight={metadata?.sprite_sheet?.sprite_height}
         />
       )}
     </>
