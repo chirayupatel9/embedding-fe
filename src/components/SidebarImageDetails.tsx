@@ -1,6 +1,7 @@
 import React from 'react';
 import { ImageDetails } from '../types/embedding';
 import * as PIXI from 'pixi.js';
+import { JsonViewer } from './JsonViewer';
 
 export const SidebarImageDetails: React.FC<{ 
   details: ImageDetails; 
@@ -72,7 +73,7 @@ export const SidebarImageDetails: React.FC<{
   }, [spriteTexture, spriteX, spriteY, spriteWidth, spriteHeight]);
   
   return (
-    <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-xl z-40 overflow-y-auto transform transition-all duration-300 ease-in-out rounded-l-2xl">
+    <div className="fixed right-0 top-0 h-full w-[550px] bg-white shadow-xl z-40 overflow-y-auto transform transition-all duration-300 ease-in-out rounded-l-2xl">
       <div className="sticky top-0 z-10 bg-blue-600 text-white px-6 py-4 shadow-md rounded-tl-2xl">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-medium">Image Details</h3>
@@ -89,19 +90,7 @@ export const SidebarImageDetails: React.FC<{
         </div>
       </div>
       
-      <div className="p-6">
-        {/* Sprite Canvas */}
-        {spriteTexture && (
-          <div className="mb-4 bg-white rounded-xl overflow-hidden shadow-md p-2">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Sprite</h4>
-            <div 
-              ref={spriteCanvasRef} 
-              className="mx-auto rounded-lg overflow-hidden"
-              style={{ width: 100, height: 100 }}
-            />
-          </div>
-        )}
-        
+      <div className="p-2">
         {/* Image Preview */}
         {details.image_data && (
           <div className="mb-6 bg-white rounded-xl overflow-hidden shadow-md">
@@ -109,13 +98,13 @@ export const SidebarImageDetails: React.FC<{
             <img 
               src={`data:${details.content_type};base64,${details.image_data}`}
               alt={details.filename || 'Image'} 
-              className="w-full object-contain"
+              className="w-full rounded-xl object-contain"
               style={{ maxHeight: 240 }}
             />
             <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
               <h4 className="text-sm font-medium text-gray-700 truncate" title={details.filename}>
                 {details.filename}
-              </h4>
+              </h4>1
             </div>
           </div>
         )}
@@ -124,15 +113,15 @@ export const SidebarImageDetails: React.FC<{
         <div className="space-y-4">
           <div className="bg-white rounded-xl shadow-md p-4">
             <h4 className="text-sm font-medium text-gray-700 mb-3">Metadata</h4>
-            <div className="space-y-2 text-sm">
+            <div className="space-y-3">
               {metadataKeys.map(key => (
-                <div key={key} className="border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+                <div key={key} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
                   <p className="text-gray-500 text-xs mb-1 font-medium uppercase">{key}:</p>
                   <div className="font-medium break-words">
                     {typeof details[key] === 'object' ? (
-                      <pre className="text-xs bg-gray-50 p-2 rounded-lg overflow-x-auto">
-                        {JSON.stringify(details[key], null, 2)}
-                      </pre>
+                      <div className="bg-gray-50 p-3 rounded-lg overflow-x-auto border border-gray-100">
+                        <JsonViewer data={details[key]} />
+                      </div>
                     ) : (
                       String(details[key])
                     )}
@@ -145,10 +134,8 @@ export const SidebarImageDetails: React.FC<{
           {details.document_details && (
             <div className="bg-white rounded-xl shadow-md p-4">
               <h4 className="text-sm font-medium text-gray-700 mb-3">Additional Metadata</h4>
-              <div className="bg-gray-50 p-3 rounded-lg text-xs overflow-x-auto border border-gray-100">
-                <pre className="text-gray-800">
-                  {JSON.stringify(details.document_details, null, 2)}
-                </pre>
+              <div className="bg-gray-50 p-3 rounded-lg overflow-x-auto border border-gray-100">
+                <JsonViewer data={details.document_details} />
               </div>
             </div>
           )}

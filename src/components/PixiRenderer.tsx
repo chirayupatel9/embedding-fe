@@ -129,9 +129,15 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
   const handleSpriteClick = async (point: Point) => {
     try {
       setSelectedPoint(point); // Store the selected point
-      const details = await getImageDetails(point.originalItem.image_id);
-      console.log('details:', details);
-      setSelectedImageDetails(details);
+      
+      // Check if image_id exists before calling getImageDetails
+      if (point.originalItem.image_id) {
+        const details = await getImageDetails(point.originalItem.image_id);
+        console.log('details:', details);
+        setSelectedImageDetails(details);
+      } else {
+        console.error('No image_id found for the selected point', point);
+      }
     } catch (error) {
       console.error('Error fetching image details:', error);
     }
