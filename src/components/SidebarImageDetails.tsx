@@ -104,7 +104,7 @@ export const SidebarImageDetails: React.FC<{
             <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
               <h4 className="text-sm font-medium text-gray-700 truncate" title={details.filename}>
                 {details.filename}
-              </h4>1
+              </h4>
             </div>
           </div>
         )}
