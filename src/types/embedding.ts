@@ -19,6 +19,7 @@ export interface EmbeddingItem {
   category: string;
   spriteX: number;
   spriteY: number;
+  image_id?: string;
 }
 
 export interface Metadata {

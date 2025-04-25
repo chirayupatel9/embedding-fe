@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
 import { Point, Metadata, ImageDetails } from '../types/embedding';
 import { getImageDetails } from '../services/images';
-import { ImageDetailsModal } from './ImageDetailsModal';
+import { SidebarImageDetails } from './SidebarImageDetails';
 
 interface PixiRendererProps {
   points: Point[];
@@ -199,7 +199,7 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
     <>
       <div ref={canvasRef} className="w-full h-full" />
       {selectedImageDetails && (
-        <ImageDetailsModal
+        <SidebarImageDetails
           details={selectedImageDetails}
           onClose={() => setSelectedImageDetails(null)}
         />
