@@ -1,18 +1,16 @@
-# Dockerfile for Node.js App
 FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Copy package.json and install dependencies
+# Copy package files
 COPY package.json package-lock.json ./
+
+# Install dependencies
 RUN npm install
 
-# Copy application code
-COPY . .
-
-# Expose port
+# Expose port for development server
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "run", "dev"]
+# Start development server
+CMD ["npm", "run", "dev"] 
