@@ -100,6 +100,18 @@ export const PixiRenderer: React.FC<PixiRendererProps> = ({
         sprite.eventMode = 'static';
         sprite.cursor = 'pointer';
         sprite.on('pointerdown', () => handleSpriteClick(point));
+        
+        // Add hover effects
+        sprite.on('pointerover', () => {
+          sprite.scale.set(1.2); // Pop up effect
+          sprite.alpha = 1; // Make fully visible
+        });
+        
+        sprite.on('pointerout', () => {
+          sprite.scale.set(0.5); // Return to original size
+          sprite.alpha = selectedPoints.some(p => p.id === point.id) ? 1 : 0.5; // Restore original alpha
+        });
+        
         spritesRef.current.set(point.id, sprite);
         viewportRef.current?.addChild(sprite);
       });
