@@ -1,5 +1,5 @@
 import { ApiResponse, Metadata } from '../types/embedding';
-
+const apiUrl = import.meta.env.VITE_API_URL;
 const generateMockItems = (count: number) => {
   const items = [];
   const categories = ['tomato', 'metal', 'plastic', 'paper'];
@@ -29,11 +29,11 @@ export const mockMetadata: Metadata = {
     height: 3200,
     sprite_width: 32,
     sprite_height: 32,
-    url: 'http://localhost:8000/output/sprite_sheet.png'
+    url: `${apiUrl}/output/sprite_sheet.png`
   }
 };
 
 export const mockApiResponse: ApiResponse = {
-  itemsPath: '/data/metadata.json',
-  spritePath: '/output/sprite_sheet.png'
+  itemsPath: `${apiUrl}/data/metadata.json`,
+  spritePath: `${apiUrl}/output/sprite_sheet.png`
 };
