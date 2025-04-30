@@ -9,6 +9,8 @@ import { createProjection } from '../utils/projection';
 import { ToolbarControls } from './ToolbarControls';
 import { ZoomControls } from './ZoomControls';
 import { SelectionInfo } from './SelectionInfo';
+import { API_CONFIG } from '../services/api/config';
+import { ProjectionControls } from './ProjectionControls';
 
 const CANVAS_WIDTH = window.innerWidth - 32
 const CANVAS_HEIGHT = window.innerHeight - 200
@@ -25,8 +27,16 @@ export const EmbeddingsVisualizer: React.FC = () => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [viewportBounds] = useState({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
   const [isProjectedView, setIsProjectedView] = useState(false);
+  const [projectionType, setProjectionType] = useState('umap');
   const viewportRef = useRef<PIXI.Container>();
   const lastProjectedPointsRef = useRef<Point[]>([]);
+
+  // Handle projection type change
+  const handleProjectionTypeChange = (type: string) => {
+    setProjectionType(type);
+    console.log('Projection type changed to:', type);
+    API_CONFIG.PROJECTION_TYPE = type;
+  };
 
   // Map API items to Point type before projecting
   useEffect(() => {
@@ -112,13 +122,17 @@ export const EmbeddingsVisualizer: React.FC = () => {
 
   return (
     <div className="fixed inset-0 overflow-auto bg-gray-100 p-4">
+
       <ToolbarControls
         isLassoMode={isLassoMode}
         isPanMode={isPanMode}
         onModeChange={handleModeChange}
         onReset={handleReset}
       />
-      
+      <ProjectionControls
+        projectionType={projectionType}
+        onProjectionTypeChange={handleProjectionTypeChange}
+      />
       <ZoomControls
         zoomLevel={zoomLevel}
         minZoom={MIN_ZOOM}
@@ -131,9 +145,9 @@ export const EmbeddingsVisualizer: React.FC = () => {
           displayedPoints={displayedPoints}
         />
       )}
-      
-      <div 
-        ref={containerRef} 
+
+      <div
+        ref={containerRef}
         className="relative mx-auto my-4 rounded-lg shadow-lg overflow-hidden bg-white"
         style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
       >

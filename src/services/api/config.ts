@@ -7,4 +7,5 @@ export const API_CONFIG = {
     GET_IMAGE: '/image-with-metadata',
   },
   TIMEOUT: 10000, // 30 seconds
+  PROJECTION_TYPE: 'umap', // Default projection type
 };
