@@ -19,7 +19,8 @@ const MAX_ZOOM = 5;
 
 export const EmbeddingsVisualizer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { points: originalPoints, isLoading, error, metadata } = useEmbeddingsData();
+  const [projectionType, setProjectionType] = useState(API_CONFIG.PROJECTION_TYPE);
+  const { points: originalPoints, isLoading, error, metadata } = useEmbeddingsData(projectionType);
   const [displayedPoints, setDisplayedPoints] = useState<Point[]>([]);
   const [selectedPoints, setSelectedPoints] = useState<Point[]>([]);
   const [isLassoMode, setIsLassoMode] = useState(false);
@@ -27,7 +28,6 @@ export const EmbeddingsVisualizer: React.FC = () => {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [viewportBounds] = useState({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
   const [isProjectedView, setIsProjectedView] = useState(false);
-  const [projectionType, setProjectionType] = useState('umap');
   const viewportRef = useRef<PIXI.Container>();
   const lastProjectedPointsRef = useRef<Point[]>([]);
 
@@ -35,7 +35,6 @@ export const EmbeddingsVisualizer: React.FC = () => {
   const handleProjectionTypeChange = (type: string) => {
     setProjectionType(type);
     console.log('Projection type changed to:', type);
-    API_CONFIG.PROJECTION_TYPE = type;
   };
 
   // Map API items to Point type before projecting

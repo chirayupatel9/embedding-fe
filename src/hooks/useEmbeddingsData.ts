@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Metadata, Point } from '../types/embedding';
 import { fetchEmbeddingsData } from '../services/api/embeddings';
 import { transformEmbeddingsData } from '../utils/dataTransformers';
+import { API_CONFIG } from '../services/api/config';
 
-export const useEmbeddingsData = () => {
+export const useEmbeddingsData = (projectionType: string = API_CONFIG.PROJECTION_TYPE) => {
   const [points, setPoints] = useState<Point[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,9 +16,8 @@ export const useEmbeddingsData = () => {
         setIsLoading(true);
         setError(null);
         
-        const fetchdata = await fetchEmbeddingsData();
-        const data = fetchdata.items
-        const transformedPoints = data //? transformEmbeddingsData(data.items) : [];
+        const fetchdata = await fetchEmbeddingsData(projectionType);
+        const transformedPoints = fetchdata.items //transformEmbeddingsData(fetchdata.items);
 
         setMetadata(fetchdata);
         setPoints(transformedPoints);
@@ -32,7 +32,7 @@ export const useEmbeddingsData = () => {
     };
 
     loadData();
-  }, []);
+  }, [projectionType]);
 
   return { points, isLoading, error, metadata };
 };

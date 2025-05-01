@@ -16,9 +16,8 @@ export const ProjectionControls: React.FC<ProjectionControlsProps> = ({
         onChange={e => onProjectionTypeChange(e.target.value)}
         className="p-2 text-gray-600 hover:text-gray-900 transition-colors rounded-md hover:bg-gray-200"
       >
-        <option value="umap">UMAP</option>
         <option value="tsne">t-SNE</option>
-        <option value="pca">PCA</option>
+        <option value="umap">UMAP</option>
       </select>
     </div>
   );

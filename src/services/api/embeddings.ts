@@ -10,12 +10,13 @@ const api = axios.create({
   },
 });
 
-export const fetchEmbeddingsData = async (): Promise<Metadata> => {
+export const fetchEmbeddingsData = async (projectionType: string = API_CONFIG.PROJECTION_TYPE): Promise<Metadata> => {
   try {
-    console.log('Attempting to fetch data from:', `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.EMBEDDINGS}`);
+    const endpoint = API_CONFIG.ENDPOINTS.EMBEDDINGS.replace('{type}', projectionType);
+    console.log('Attempting to fetch data from:', `${API_CONFIG.BASE_URL}${endpoint}`);
     
     // Fetch the API response with paths and data
-    const { data: apiResponse } = await api.get<ApiResponse>(API_CONFIG.ENDPOINTS.EMBEDDINGS);
+    const { data: apiResponse } = await api.get<ApiResponse>(endpoint);
     
     if (!apiResponse?.itemsPath || !apiResponse?.spritePath) {
       throw new Error('Invalid API response: missing required paths');
