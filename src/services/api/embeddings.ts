@@ -13,7 +13,7 @@ const api = axios.create({
 export const fetchEmbeddingsData = async (projectionType: string = API_CONFIG.PROJECTION_TYPE): Promise<Metadata> => {
   try {
     const endpoint = API_CONFIG.ENDPOINTS.EMBEDDINGS.replace('{type}', projectionType);
-    console.log('Attempting to fetch data from:', `${API_CONFIG.BASE_URL}${endpoint}`);
+    // console.log('Attempting to fetch data from:', `${API_CONFIG.BASE_URL}${endpoint}`);
     
     // Fetch the API response with paths and data
     const { data: apiResponse } = await api.get<ApiResponse>(endpoint);
@@ -50,12 +50,13 @@ export const fetchEmbeddingsData = async (projectionType: string = API_CONFIG.PR
   }
 };
 
-export const fetchSubsetData = async (imageIds: string[]): Promise<Metadata> => {
+export const fetchSubsetData = async (imageIds: string[], projectionType: string = API_CONFIG.PROJECTION_TYPE): Promise<Metadata> => {
   try {
-    console.log('Fetching subset data for image IDs:', imageIds);
+    // console.log('Fetching subset data for image IDs:', imageIds);
     
+    const endpoint = API_CONFIG.ENDPOINTS.MAKE_SUBSET.replace('{type}', projectionType);
     // Fetch the API response with paths and data
-    const { data: apiResponse } = await api.post<ApiResponse>(API_CONFIG.ENDPOINTS.MAKE_SUBSET, { image_ids: imageIds });
+    const { data: apiResponse } = await api.post<ApiResponse>(endpoint, { image_ids: imageIds });
     
     if (!apiResponse?.itemsPath || !apiResponse?.spritePath) {
       throw new Error('Invalid API response: missing required paths');

@@ -58,7 +58,7 @@ export const EmbeddingsVisualizer: React.FC = () => {
           image_id: item.image_id,
         },
       }));
-      console.log('Mapped points sample:', points[0]);
+      // console.log('Mapped points sample:', points[0]);
       const projectedPoints = createProjection(points, CANVAS_WIDTH, CANVAS_HEIGHT);
       lastProjectedPointsRef.current = projectedPoints;
       setDisplayedPoints(projectedPoints);
@@ -101,10 +101,10 @@ export const EmbeddingsVisualizer: React.FC = () => {
           throw new Error('No valid image IDs found in selection');
         }
         
-        console.log('Sending image IDs to subset endpoint:', imageIds);
+        // console.log('Sending image IDs to subset endpoint:', imageIds);
         
-        // Fetch the subset data
-        const subsetData = await fetchSubsetData(imageIds);
+        // Fetch the subset data with the current projection type
+        const subsetData = await fetchSubsetData(imageIds, projectionType);
         
         // Transform the subset data into points
         const subsetPoints = subsetData.items.map((item: any, idx: number) => ({
@@ -158,7 +158,7 @@ export const EmbeddingsVisualizer: React.FC = () => {
         setZoomLevel(1);
       }
     }
-  }, [CANVAS_WIDTH, CANVAS_HEIGHT]);
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT, projectionType]);
 
   if (error) {
     return (

@@ -36,7 +36,7 @@ export function createProjection(points: Point[], width: number, height: number)
   const maxX = Math.max(...validPoints.map(p => p.embedding[0]));
   const minY = Math.min(...validPoints.map(p => p.embedding[1]));
   const maxY = Math.max(...validPoints.map(p => p.embedding[1]));
-  console.log('minX:', minX, 'maxX:', maxX, 'minY:', minY, 'maxY:', maxY);
+  // console.log('minX:', minX, 'maxX:', maxX, 'minY:', minY, 'maxY:', maxY);
   // Calculate scales to fit points within available space
   const xRange = maxX - minX || 1;
   const yRange = maxY - minY || 1;

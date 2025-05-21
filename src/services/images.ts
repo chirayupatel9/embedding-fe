@@ -3,7 +3,7 @@ import { ImageDetails } from '../types/embedding';
 
 export async function getImageDetails(image_id: string): Promise<ImageDetails> {
   const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.GET_IMAGE}/${image_id}`);
-  console.log(response);
+  // console.log(response);
   if (!response.ok) throw new Error('Failed to fetch image');
 
   // For backward compatibility with older implementation
