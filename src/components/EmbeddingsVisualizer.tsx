@@ -11,6 +11,7 @@ import { ZoomControls } from './ZoomControls';
 import { SelectionInfo } from './SelectionInfo';
 import { API_CONFIG } from '../services/api/config';
 import { ProjectionControls } from './ProjectionControls';
+import { fetchSubsetData } from '../services/api/embeddings';
 
 const CANVAS_WIDTH = window.innerWidth - 32
 const CANVAS_HEIGHT = window.innerHeight - 200
@@ -88,18 +89,74 @@ export const EmbeddingsVisualizer: React.FC = () => {
     }
   }, []);
 
-  const handleSelectionComplete = useCallback((selected: Point[]) => {
+  const handleSelectionComplete = useCallback(async (selected: Point[]) => {
     if (selected.length > 0) {
-      const projectedSelection = createProjection(selected, CANVAS_WIDTH, CANVAS_HEIGHT);
-      setSelectedPoints(selected);
-      setDisplayedPoints(projectedSelection);
-      setIsLassoMode(false);
-      setIsProjectedView(true);
-      if (viewportRef.current) {
-        viewportRef.current.position.set(0, 0);
-        viewportRef.current.scale.set(1);
+      try {
+        // Get the image IDs from the selected points
+        const imageIds = selected
+          .map(point => point.originalItem.image_id)
+          .filter((id): id is string => typeof id === 'string');
+        
+        if (imageIds.length === 0) {
+          throw new Error('No valid image IDs found in selection');
+        }
+        
+        console.log('Sending image IDs to subset endpoint:', imageIds);
+        
+        // Fetch the subset data
+        const subsetData = await fetchSubsetData(imageIds);
+        
+        // Transform the subset data into points
+        const subsetPoints = subsetData.items.map((item: any, idx: number) => ({
+          id: item.image_id, // Use image_id as the id
+          x: item.embedding[0], // Use the x coordinate from embedding
+          y: item.embedding[1], // Use the y coordinate from embedding
+          category: item.category,
+          spriteX: item.spriteX ?? item.sprite_x ?? 0,
+          spriteY: item.spriteY ?? item.sprite_y ?? 0,
+          embedding: item.embedding,
+          originalItem: {
+            embedding: item.embedding,
+            label: item.image_id,
+            category: item.category,
+            spriteX: item.spriteX ?? item.sprite_x ?? 0,
+            spriteY: item.spriteY ?? item.sprite_y ?? 0,
+            image_id: item.image_id,
+            filename: item.filename,
+            width: item.width,
+            height: item.height
+          },
+        }));
+
+        // Project the subset points to fit the canvas
+        const projectedSelection = createProjection(subsetPoints, CANVAS_WIDTH, CANVAS_HEIGHT);
+        
+        // Update the state with the subset data
+        setSelectedPoints(selected);
+        setDisplayedPoints(projectedSelection);
+        setIsLassoMode(false);
+        setIsProjectedView(true);
+        
+        // Reset viewport
+        if (viewportRef.current) {
+          viewportRef.current.position.set(0, 0);
+          viewportRef.current.scale.set(1);
+        }
+        setZoomLevel(1);
+      } catch (error) {
+        console.error('Error fetching subset data:', error);
+        // If there's an error, fall back to the original selection behavior
+        const projectedSelection = createProjection(selected, CANVAS_WIDTH, CANVAS_HEIGHT);
+        setSelectedPoints(selected);
+        setDisplayedPoints(projectedSelection);
+        setIsLassoMode(false);
+        setIsProjectedView(true);
+        if (viewportRef.current) {
+          viewportRef.current.position.set(0, 0);
+          viewportRef.current.scale.set(1);
+        }
+        setZoomLevel(1);
       }
-      setZoomLevel(1);
     }
   }, [CANVAS_WIDTH, CANVAS_HEIGHT]);
 

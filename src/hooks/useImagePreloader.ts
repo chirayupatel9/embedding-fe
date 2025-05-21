@@ -27,7 +27,7 @@ export const useImagePreloader = () => {
       
       const timeoutId = setTimeout(() => {
         reject(new Error('Image load timeout'));
-      }, 5000); // 5 second timeout
+      }, 15000000); // 5 second timeout
 
       img.onload = () => {
         clearTimeout(timeoutId);

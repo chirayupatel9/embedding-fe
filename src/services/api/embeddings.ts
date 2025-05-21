@@ -49,3 +49,41 @@ export const fetchEmbeddingsData = async (projectionType: string = API_CONFIG.PR
     throw error instanceof Error ? error : new Error('Failed to fetch embeddings data');
   }
 };
+
+export const fetchSubsetData = async (imageIds: string[]): Promise<Metadata> => {
+  try {
+    console.log('Fetching subset data for image IDs:', imageIds);
+    
+    // Fetch the API response with paths and data
+    const { data: apiResponse } = await api.post<ApiResponse>(API_CONFIG.ENDPOINTS.MAKE_SUBSET, { image_ids: imageIds });
+    
+    if (!apiResponse?.itemsPath || !apiResponse?.spritePath) {
+      throw new Error('Invalid API response: missing required paths');
+    }
+
+    // Make the sprite sheet URL absolute - include /api in the path
+    const spriteSheetMeta = {
+      ...apiResponse.spritePath,
+      url: apiResponse.spritePath.url ? `${API_CONFIG.BASE_URL}${apiResponse.spritePath.url}` : undefined
+    };
+
+    return {
+      items: apiResponse.itemsPath,
+      sprite_sheet: spriteSheetMeta as SpriteSheetMeta
+    };
+  } catch (error) {
+    console.error('API Error:', error);
+    if (axios.isAxiosError(error)) {
+      if (error.code === 'ECONNABORTED') {
+        throw new Error(`Request timeout - please try again. Could not connect to ${API_CONFIG.BASE_URL}`);
+      }
+      if (error.response) {
+        throw new Error(`Server error: ${error.response.status} - ${error.response.data}`);
+      }
+      if (error.request) {
+        throw new Error(`No response from server - please check if the server is running at ${API_CONFIG.BASE_URL}`);
+      }
+    }
+    throw error instanceof Error ? error : new Error('Failed to fetch subset data');
+  }
+};
