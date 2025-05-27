@@ -1,5 +1,101 @@
 import React from 'react';
-import { Cpu, Code, Terminal, Server, Download, Play, Upload } from 'lucide-react';
+import { Cpu, Code, Terminal, Server, Download, Play, Upload, Database } from 'lucide-react';
+import { MermaidChart } from './MermaidChart';
+import mermaid from 'mermaid';
+
+const backendMermaid = `graph TD
+    subgraph Frontend["Frontend - React/TypeScript"]
+        FE["Embeddings App"]
+        UI["User Interface"]
+    end
+
+    subgraph Backend["Backend - FastAPI"]
+        API["API Endpoints"]
+        FS["GridFS"]
+        DB["MongoDB"]
+        SPRITE["Sprite Sheet Generator"]
+    end
+
+    subgraph DataFlow["Data Flow"]
+        Upload["Upload Images & Metadata"]
+        Process["Process Data"]
+        Visualize["Visualize Embeddings"]
+    end
+
+    %% Frontend to Backend connections
+    FE -->|"HTTP Requests"| API
+    UI -->|"User Interactions"| FE
+
+    %% Backend internal connections
+    API -->|"Store Images"| FS
+    API -->|"Store Metadata"| DB
+    API -->|"Generate"| SPRITE
+    SPRITE -->|"Save"| FS
+    SPRITE -->|"Save Metadata"| DB
+
+    %% Data Flow connections
+    Upload -->|"POST /api/upload-images-with-metadata"| API
+    Process -->|"GET /api/embeddings"| API
+    Visualize -->|"GET /api/get-image"| API
+
+    %% API Endpoints
+    subgraph Endpoints["API Endpoints"]
+        UploadEP["/api/upload-images-with-metadata"]
+        EmbeddingsEP["/api/embeddings"]
+        GetImageEP["/api/get-image/{image_id}"]
+        GetAllEP["/api/get-all-images"]
+        GetDetailsEP["/api/get-image-details/{image_id}"]
+    end
+
+    %% Data Storage
+    subgraph Storage["Storage"]
+        Images["GridFS Images"]
+        Metadata["MongoDB Documents"]
+        SpriteSheet["Sprite Sheet"]
+    end
+
+    %% Connect endpoints to storage
+    UploadEP --> Images
+    UploadEP --> Metadata
+    EmbeddingsEP --> SpriteSheet
+    GetImageEP --> Images
+    GetAllEP --> Images
+    GetDetailsEP --> Metadata
+
+    %% Style
+    classDef frontend fill:#f9f,stroke:#333,stroke-width:2px
+    classDef backend fill:#bbf,stroke:#333,stroke-width:2px
+    classDef storage fill:#bfb,stroke:#333,stroke-width:2px
+    classDef endpoint fill:#ffd,stroke:#333,stroke-width:2px
+
+    class FE,UI frontend
+    class API,FS,DB,SPRITE backend
+    class Images,Metadata,SpriteSheet storage
+    class UploadEP,EmbeddingsEP,GetImageEP,GetAllEP,GetDetailsEP endpoint`;
+
+const BackendMermaidChart: React.FC = () => {
+  const chartRef = React.useRef<HTMLPreElement>(null);
+  React.useEffect(() => {
+    if (chartRef.current) {
+      try {
+        mermaid.init(undefined, chartRef.current);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error rendering backend Mermaid chart:', error);
+        chartRef.current.innerHTML = '<p class="text-red-500">Error loading backend chart</p>';
+      }
+    }
+  }, []);
+  return (
+    <pre
+      ref={chartRef}
+      className="mermaid overflow-x-auto"
+      style={{ minHeight: '400px' }}
+    >
+      {backendMermaid}
+    </pre>
+  );
+};
 
 export const About: React.FC = () => {
   return (
@@ -27,6 +123,8 @@ export const About: React.FC = () => {
               They capture semantic relationships and patterns, making it easier to analyze and compare different pieces of data.
             </p>
           </div>
+
+          <MermaidChart />
 
           <div className="bg-white shadow rounded-lg p-4 sm:p-6">
             <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4">
@@ -129,6 +227,84 @@ export const About: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Backend Section */}
+          <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+              <Database className="w-6 h-6 text-green-600" /> Backend
+            </h2>
+            <div className="space-y-4 text-base sm:text-lg text-gray-700">
+              <div>
+                <strong>Extracting data from datafed:</strong>
+                <ul className="list-disc list-inside ml-5">
+                  <li>If you have data locally, copy the folder path and use it for generating embeddings.</li>
+                  <li>To extract from datafed, adjust your environment variables according to your datafed configuration.</li>
+                  <li><b>Must have a globus container running.</b> If not, check the documentation for setup.</li>
+                  <li>Run: <code className="bg-gray-100 px-1 py-0.5 rounded">python datafed_extractor.py</code></li>
+                </ul>
+              </div>
+              <div>
+                <strong>Initialize MongoDB with Docker:</strong>
+                <pre className="bg-gray-100 p-2 rounded text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap sm:whitespace-pre mb-2">
+{`docker run --name mongodb \
+  -p 27017:27017 \
+  --restart unless-stopped \
+  -d mongodb/mongodb-community-server:latest`}
+                </pre>
+              </div>
+              <div>
+                <strong>Install Python dependencies:</strong>
+                <pre className="bg-gray-100 p-2 rounded text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap sm:whitespace-pre mb-2">
+{`pip install -r requirements.txt`}
+                </pre>
+              </div>
+              <div>
+                <strong>Run the backend server locally:</strong>
+                <pre className="bg-gray-100 p-2 rounded text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap sm:whitespace-pre mb-2">
+{`python app.py`}
+                </pre>
+              </div>
+            </div>
+            <div className="mt-6">
+              <BackendMermaidChart />
+            </div>
+            <div className="space-y-4 text-base sm:text-lg text-gray-700 mt-6">
+              <div>
+                <strong>Docker Setup:</strong>
+                <ol className="list-decimal list-inside ml-5">
+                  <li>Clone the repository</li>
+                  <li>Navigate to the project directory</li>
+                  <li>Run:
+                    <pre className="bg-gray-100 p-2 rounded text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap sm:whitespace-pre mb-2">
+{`docker-compose -f docker-compose.yml up --build`}
+                    </pre>
+                  </li>
+                </ol>
+                <ul className="list-disc list-inside ml-5">
+                  <li>Mounts the local code directory into the container for hot-reloading</li>
+                  <li>Runs with debug mode enabled</li>
+                  <li>Uses a non-authenticated MongoDB instance</li>
+                </ul>
+              </div>
+              <div>
+                <strong>Once app is running:</strong>
+                <ul className="list-disc list-inside ml-5">
+                  <li>To load/upload data with folder path of metadata and images:
+                    <pre className="bg-gray-100 p-2 rounded text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap sm:whitespace-pre mb-2">
+{`/api/upload-images`}
+                    </pre>
+                  </li>
+                  <li>Then run the following API with method as UMap and TSNE:
+                    <pre className="bg-gray-100 p-2 rounded text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap sm:whitespace-pre mb-2">
+{`/api/make_reduction/{method}`}
+                    </pre>
+                  </li>
+                  <li>Later, everything will be handled in the UI.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

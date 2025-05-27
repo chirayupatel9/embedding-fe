@@ -177,54 +177,53 @@ export const EmbeddingsVisualizer: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 overflow-auto bg-gray-100 p-4">
+    <div className="h-full w-full bg-gray-100 p-4">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <ToolbarControls
+            isLassoMode={isLassoMode}
+            isPanMode={isPanMode}
+            onModeChange={handleModeChange}
+            onReset={handleReset}
+          />
+          <ProjectionControls
+            projectionType={projectionType}
+            onProjectionTypeChange={handleProjectionTypeChange}
+          />
+          <ZoomControls
+            zoomLevel={zoomLevel}
+            minZoom={MIN_ZOOM}
+            maxZoom={MAX_ZOOM}
+            onZoomChange={handleZoomChange}
+          />
+        </div>
 
-      <ToolbarControls
-        isLassoMode={isLassoMode}
-        isPanMode={isPanMode}
-        onModeChange={handleModeChange}
-        onReset={handleReset}
-      />
-      <ProjectionControls
-        projectionType={projectionType}
-        onProjectionTypeChange={handleProjectionTypeChange}
-      />
-      <ZoomControls
-        zoomLevel={zoomLevel}
-        minZoom={MIN_ZOOM}
-        maxZoom={MAX_ZOOM}
-        onZoomChange={handleZoomChange}
-      />
-
-      {isProjectedView && (
-        <SelectionInfo
-          displayedPoints={displayedPoints}
-        />
-      )}
-
-      <div
-        ref={containerRef}
-        className="relative mx-auto my-4 rounded-lg shadow-lg overflow-hidden bg-white"
-        style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
-      >
-        <PixiRenderer
-          points={displayedPoints}
-          selectedPoints={selectedPoints}
-          viewportBounds={viewportBounds}
-          isLassoMode={isLassoMode}
-          isPanMode={isPanMode}
-          zoomLevel={zoomLevel}
-          viewportRef={viewportRef}
-          metadata={metadata}
-        />
-        {isLassoMode && (
-          <SelectionOverlay
-            points={displayedPoints}
-            onSelection={handleSelectionComplete}
-            viewportBounds={viewportBounds}
-            viewportRef={viewportRef}
+        {isProjectedView && (
+          <SelectionInfo
+            displayedPoints={displayedPoints}
           />
         )}
+
+        <div className="relative flex-1" style={{ height: CANVAS_HEIGHT }}>
+          <PixiRenderer
+            points={displayedPoints}
+            selectedPoints={selectedPoints}
+            viewportBounds={viewportBounds}
+            isLassoMode={isLassoMode}
+            isPanMode={isPanMode}
+            zoomLevel={zoomLevel}
+            viewportRef={viewportRef}
+            metadata={metadata}
+          />
+          {isLassoMode && (
+            <SelectionOverlay
+              points={displayedPoints}
+              onSelection={handleSelectionComplete}
+              viewportBounds={viewportBounds}
+              viewportRef={viewportRef}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
