@@ -2,6 +2,7 @@ import React from 'react';
 import { Cpu, Code, Terminal, Server, Download, Play, Upload, Database } from 'lucide-react';
 import { MermaidChart } from './MermaidChart';
 import mermaid from 'mermaid';
+import svgPanZoom from 'svg-pan-zoom';
 
 const backendMermaid = `graph TD
     subgraph Frontend["Frontend - React/TypeScript"]
@@ -74,26 +75,56 @@ const backendMermaid = `graph TD
     class UploadEP,EmbeddingsEP,GetImageEP,GetAllEP,GetDetailsEP endpoint`;
 
 const BackendMermaidChart: React.FC = () => {
-  const chartRef = React.useRef<HTMLPreElement>(null);
+  const chartRef = React.useRef<HTMLDivElement>(null);
+  const panZoomInstance = React.useRef<any>(null);
   React.useEffect(() => {
-    if (chartRef.current) {
-      try {
-        mermaid.init(undefined, chartRef.current);
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('Error rendering backend Mermaid chart:', error);
-        chartRef.current.innerHTML = '<p class="text-red-500">Error loading backend chart</p>';
+    let isMounted = true;
+    const renderMermaid = async () => {
+      if (chartRef.current) {
+        try {
+          // Render SVG as string
+          const { svg } = await mermaid.render('backend-mermaid-svg', backendMermaid);
+          if (!isMounted) return;
+          chartRef.current.innerHTML = svg;
+          const svgEl = chartRef.current.querySelector('svg');
+          if (svgEl) {
+            svgEl.removeAttribute('width');
+            svgEl.removeAttribute('height');
+            svgEl.style.width = '100%';
+            svgEl.style.height = '100%';
+            // Ensure viewBox exists
+            if (!svgEl.getAttribute('viewBox')) {
+              const bbox = svgEl.getBBox();
+              svgEl.setAttribute('viewBox', `0 0 ${bbox.width} ${bbox.height}`);
+            }
+            panZoomInstance.current = svgPanZoom(svgEl, {
+              zoomEnabled: true,
+              controlIconsEnabled: true,
+              fit: true,
+              center: true,
+              panEnabled: true,
+              minZoom: 0.2,
+              maxZoom: 10,
+            });
+          }
+        } catch (error) {
+          chartRef.current.innerHTML = '<p class="text-red-500">Error rendering chart</p>';
+        }
       }
-    }
+    };
+    renderMermaid();
+    return () => {
+      isMounted = false;
+      if (panZoomInstance.current) {
+        panZoomInstance.current.destroy();
+        panZoomInstance.current = null;
+      }
+    };
   }, []);
   return (
-    <pre
-      ref={chartRef}
-      className="mermaid overflow-x-auto"
-      style={{ minHeight: '400px' }}
-    >
-      {backendMermaid}
-    </pre>
+    <div style={{ minHeight: '400px', width: '100%', height: '500px', overflow: 'auto' }}>
+      <div ref={chartRef} style={{ width: '100%', height: '100%' }} />
+    </div>
   );
 };
 
