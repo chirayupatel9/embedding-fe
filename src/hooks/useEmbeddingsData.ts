@@ -4,7 +4,10 @@ import { fetchEmbeddingsData } from '../services/api/embeddings';
 import { transformEmbeddingsData } from '../utils/dataTransformers';
 import { API_CONFIG } from '../services/api/config';
 
-export const useEmbeddingsData = (projectionType: string = API_CONFIG.PROJECTION_TYPE) => {
+export const useEmbeddingsData = (
+  projectionType: string = API_CONFIG.PROJECTION_TYPE,
+  modelType: string = API_CONFIG.DEFAULT_MODEL
+) => {
   const [points, setPoints] = useState<Point[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +19,7 @@ export const useEmbeddingsData = (projectionType: string = API_CONFIG.PROJECTION
         setIsLoading(true);
         setError(null);
         
-        const fetchdata = await fetchEmbeddingsData(projectionType);
+        const fetchdata = await fetchEmbeddingsData(projectionType, modelType);
         const transformedPoints = fetchdata.items //transformEmbeddingsData(fetchdata.items);
 
         setMetadata(fetchdata);
@@ -32,7 +35,7 @@ export const useEmbeddingsData = (projectionType: string = API_CONFIG.PROJECTION
     };
 
     loadData();
-  }, [projectionType]);
+  }, [projectionType, modelType]);
 
   return { points, isLoading, error, metadata };
 };

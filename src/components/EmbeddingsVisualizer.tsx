@@ -21,7 +21,8 @@ const MAX_ZOOM = 5;
 export const EmbeddingsVisualizer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [projectionType, setProjectionType] = useState(API_CONFIG.PROJECTION_TYPE);
-  const { points: originalPoints, isLoading, error, metadata } = useEmbeddingsData(projectionType);
+  const [modelType, setModelType] = useState(API_CONFIG.DEFAULT_MODEL);
+  const { points: originalPoints, isLoading, error, metadata } = useEmbeddingsData(projectionType, modelType);
   const [displayedPoints, setDisplayedPoints] = useState<Point[]>([]);
   const [selectedPoints, setSelectedPoints] = useState<Point[]>([]);
   const [isLassoMode, setIsLassoMode] = useState(false);
@@ -36,6 +37,12 @@ export const EmbeddingsVisualizer: React.FC = () => {
   const handleProjectionTypeChange = (type: string) => {
     setProjectionType(type);
     console.log('Projection type changed to:', type);
+  };
+
+  // Handle model type change
+  const handleModelTypeChange = (type: string) => {
+    setModelType(type);
+    console.log('Model type changed to:', type);
   };
 
   // Map API items to Point type before projecting
@@ -101,10 +108,8 @@ export const EmbeddingsVisualizer: React.FC = () => {
           throw new Error('No valid image IDs found in selection');
         }
         
-        // console.log('Sending image IDs to subset endpoint:', imageIds);
-        
-        // Fetch the subset data with the current projection type
-        const subsetData = await fetchSubsetData(imageIds, projectionType);
+        // Fetch the subset data with the current projection type and model
+        const subsetData = await fetchSubsetData(imageIds, projectionType, modelType);
         
         // Transform the subset data into points
         const subsetPoints = subsetData.items.map((item: any, idx: number) => ({
@@ -158,7 +163,7 @@ export const EmbeddingsVisualizer: React.FC = () => {
         setZoomLevel(1);
       }
     }
-  }, [CANVAS_WIDTH, CANVAS_HEIGHT, projectionType]);
+  }, [CANVAS_WIDTH, CANVAS_HEIGHT, projectionType, modelType]);
 
   if (error) {
     return (
@@ -189,6 +194,8 @@ export const EmbeddingsVisualizer: React.FC = () => {
           <ProjectionControls
             projectionType={projectionType}
             onProjectionTypeChange={handleProjectionTypeChange}
+            modelType={modelType}
+            onModelTypeChange={handleModelTypeChange}
           />
           <ZoomControls
             zoomLevel={zoomLevel}

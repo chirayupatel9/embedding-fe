@@ -10,10 +10,14 @@ const api = axios.create({
   },
 });
 
-export const fetchEmbeddingsData = async (projectionType: string = API_CONFIG.PROJECTION_TYPE): Promise<Metadata> => {
+export const fetchEmbeddingsData = async (
+  projectionType: string = API_CONFIG.PROJECTION_TYPE,
+  modelType: string = API_CONFIG.DEFAULT_MODEL
+): Promise<Metadata> => {
   try {
-    const endpoint = API_CONFIG.ENDPOINTS.EMBEDDINGS.replace('{type}', projectionType);
-    // console.log('Attempting to fetch data from:', `${API_CONFIG.BASE_URL}${endpoint}`);
+    const endpoint = API_CONFIG.ENDPOINTS.EMBEDDINGS
+      .replace('{method}', projectionType)
+      .replace('{model}', modelType);
     
     // Fetch the API response with paths and data
     const { data: apiResponse } = await api.get<ApiResponse>(endpoint);
@@ -34,27 +38,21 @@ export const fetchEmbeddingsData = async (projectionType: string = API_CONFIG.PR
       sprite_sheet: spriteSheetMeta as SpriteSheetMeta
     };
   } catch (error) {
-    console.error('API Error:', error);
-    if (axios.isAxiosError(error)) {
-      if (error.code === 'ECONNABORTED') {
-        throw new Error(`Request timeout - please try again. Could not connect to ${API_CONFIG.BASE_URL}`);
-      }
-      if (error.response) {
-        throw new Error(`Server error: ${error.response.status} - ${error.response.data}`);
-      }
-      if (error.request) {
-        throw new Error(`No response from server - please check if the server is running at ${API_CONFIG.BASE_URL}`);
-      }
-    }
-    throw error instanceof Error ? error : new Error('Failed to fetch embeddings data');
+    console.error('Error fetching embeddings data:', error);
+    throw error;
   }
 };
 
-export const fetchSubsetData = async (imageIds: string[], projectionType: string = API_CONFIG.PROJECTION_TYPE): Promise<Metadata> => {
+export const fetchSubsetData = async (
+  imageIds: string[],
+  projectionType: string = API_CONFIG.PROJECTION_TYPE,
+  modelType: string = API_CONFIG.DEFAULT_MODEL
+): Promise<Metadata> => {
   try {
-    // console.log('Fetching subset data for image IDs:', imageIds);
+    const endpoint = API_CONFIG.ENDPOINTS.MAKE_SUBSET
+      .replace('{method}', projectionType)
+      .replace('{model}', modelType);
     
-    const endpoint = API_CONFIG.ENDPOINTS.MAKE_SUBSET.replace('{type}', projectionType);
     // Fetch the API response with paths and data
     const { data: apiResponse } = await api.post<ApiResponse>(endpoint, { image_ids: imageIds });
     
