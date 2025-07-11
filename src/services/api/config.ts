@@ -7,11 +7,11 @@ export const API_CONFIG = {
     MAKE_SUBSET: '/make_reduction_subset/{method}/{model}',
     GET_IMAGE: '/image-with-metadata',
   },
-  TIMEOUT: 10000, // 30 seconds
+  TIMEOUT: 3000000, // 30 seconds
   PROJECTION_TYPE: 'umap', // Default projection type
   MODEL_TYPES: {
     XCITE: 'xcite',
     RESNET50: 'resnet50'
   },
-  DEFAULT_MODEL: 'xcite'
+  DEFAULT_MODEL: 'resnet50'
 };

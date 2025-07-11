@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
 import { Lasso, Move, Hand, MinusCircle, PlusCircle, Loader2 } from 'lucide-react';
-import { Point } from '../types/embedding';
+import { Point, Metadata } from '../types/embedding';
 import { useEmbeddingsData } from '../hooks/useEmbeddingsData';
 import { PixiRenderer } from './PixiRenderer';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -22,7 +22,8 @@ export const EmbeddingsVisualizer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [projectionType, setProjectionType] = useState(API_CONFIG.PROJECTION_TYPE);
   const [modelType, setModelType] = useState(API_CONFIG.DEFAULT_MODEL);
-  const { points: originalPoints, isLoading, error, metadata } = useEmbeddingsData(projectionType, modelType);
+  const { points: originalPoints, isLoading, error, metadata: originalMetadata } = useEmbeddingsData(projectionType, modelType);
+  const [currentMetadata, setCurrentMetadata] = useState<Metadata | null>(null);
   const [displayedPoints, setDisplayedPoints] = useState<Point[]>([]);
   const [selectedPoints, setSelectedPoints] = useState<Point[]>([]);
   const [isLassoMode, setIsLassoMode] = useState(false);
@@ -72,6 +73,13 @@ export const EmbeddingsVisualizer: React.FC = () => {
     }
   }, [originalPoints]);
 
+  // Set current metadata when original metadata changes
+  useEffect(() => {
+    if (originalMetadata) {
+      setCurrentMetadata(originalMetadata);
+    }
+  }, [originalMetadata]);
+
   const handleZoomChange = useCallback((newZoom: number) => {
     setZoomLevel(Math.min(Math.max(newZoom, MIN_ZOOM), MAX_ZOOM));
   }, []);
@@ -89,12 +97,16 @@ export const EmbeddingsVisualizer: React.FC = () => {
       setIsLassoMode(false);
       setIsPanMode(false);
       setIsProjectedView(false);
+      // Restore original metadata from the useEmbeddingsData hook
+      if (originalMetadata) {
+        setCurrentMetadata(originalMetadata);
+      }
       if (viewportRef.current) {
         viewportRef.current.position.set(0, 0);
         viewportRef.current.scale.set(1);
       }
     }
-  }, []);
+  }, [originalMetadata]);
 
   const handleSelectionComplete = useCallback(async (selected: Point[]) => {
     if (selected.length > 0) {
@@ -136,9 +148,10 @@ export const EmbeddingsVisualizer: React.FC = () => {
         // Project the subset points to fit the canvas
         const projectedSelection = createProjection(subsetPoints, CANVAS_WIDTH, CANVAS_HEIGHT);
         
-        // Update the state with the subset data
+        // Update the state with the subset data and new metadata (including new sprite sheet)
         setSelectedPoints(selected);
         setDisplayedPoints(projectedSelection);
+        setCurrentMetadata(subsetData); // Update metadata with the new sprite sheet from subset
         setIsLassoMode(false);
         setIsProjectedView(true);
         
@@ -173,7 +186,7 @@ export const EmbeddingsVisualizer: React.FC = () => {
     );
   }
 
-  if (isLoading || !metadata) {
+  if (isLoading || !currentMetadata) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -220,7 +233,7 @@ export const EmbeddingsVisualizer: React.FC = () => {
             isPanMode={isPanMode}
             zoomLevel={zoomLevel}
             viewportRef={viewportRef}
-            metadata={metadata}
+            metadata={currentMetadata}
           />
           {isLassoMode && (
             <SelectionOverlay
